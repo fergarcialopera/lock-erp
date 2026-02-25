@@ -5,6 +5,7 @@ namespace Src\Lockers\Infrastructure\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class ClinicController extends Controller
 {
@@ -18,9 +19,7 @@ class ClinicController extends Controller
 
     public function updateSettings(Request $request)
     {
-        if ($request->user()->role !== 'ADMIN') {
-            return response()->json(['error' => 'Forbidden'], 403);
-        }
+        Gate::authorize('manage-settings');
 
         $validated = $request->validate([
             'open_latency_ms' => 'required|integer|min:0'

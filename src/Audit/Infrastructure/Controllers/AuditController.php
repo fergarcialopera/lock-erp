@@ -5,15 +5,14 @@ namespace Src\Audit\Infrastructure\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class AuditController extends Controller
 {
     public function index(Request $request)
     {
+        Gate::authorize('view-audit');
         $user = $request->user();
-        if (!in_array($user->role, ['ADMIN', 'RESPONSABLE'])) {
-            return response()->json(['error' => 'Forbidden'], 403);
-        }
 
         $logs = DB::table('audit_logs')
             ->where('clinic_id', $user->clinic_id)

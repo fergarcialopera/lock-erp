@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 
+use Illuminate\Support\Facades\Gate;
+
 class InventoryController extends Controller
 {
     public function index(Request $request)
@@ -23,10 +25,8 @@ class InventoryController extends Controller
 
     public function adjust(Request $request)
     {
+        Gate::authorize('manage-inventory');
         $user = $request->user();
-        if (!in_array($user->role, ['ADMIN', 'RESPONSABLE'])) {
-            return response()->json(['error' => 'Forbidden'], 403);
-        }
 
         $validated = $request->validate([
             'compartment_id' => 'required|string',

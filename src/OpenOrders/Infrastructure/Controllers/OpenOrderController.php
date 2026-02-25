@@ -5,6 +5,7 @@ namespace Src\OpenOrders\Infrastructure\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class OpenOrderController extends Controller
@@ -23,10 +24,8 @@ class OpenOrderController extends Controller
 
     public function create(Request $request)
     {
+        Gate::authorize('manage-orders');
         $user = $request->user();
-        if (!in_array($user->role, ['ADMIN', 'RESPONSABLE'])) {
-            return response()->json(['error' => 'Forbidden'], 403);
-        }
 
         $validated = $request->validate([
             'compartment_id' => 'required|string',
