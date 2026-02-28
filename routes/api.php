@@ -5,7 +5,7 @@ use Src\Identity\Infrastructure\Controllers\AuthController;
 
 Route::prefix('v1')->group(function () {
     // Auth
-    Route::post('auth/login', [AuthController::class , 'login']);
+    Route::post('login', [AuthController::class , 'login']);
 
     // Protected Routes
     Route::middleware('auth:api')->group(function () {
@@ -25,4 +25,5 @@ Route::prefix('v1')->group(function () {
             // Audit Logs
             Route::get('audit-logs', [\Src\Audit\Infrastructure\Controllers\AuditController::class , 'index']);
         }
-        );    });
+        );
+    });
