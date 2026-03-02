@@ -2,6 +2,14 @@
 
 use Illuminate\Support\Facades\Route;
 use Src\Identity\Infrastructure\Controllers\AuthController;
+use Src\Identity\Infrastructure\Controllers\UserController;
+use Src\Inventory\Infrastructure\Controllers\InventoryController;
+use Src\Inventory\Infrastructure\Controllers\ProductController;
+use Src\Lockers\Infrastructure\Controllers\ClinicController;
+use Src\Lockers\Infrastructure\Controllers\LockerController;
+use Src\Lockers\Infrastructure\Controllers\CompartmentController;
+use Src\OpenOrders\Infrastructure\Controllers\OpenOrderController;
+use Src\Audit\Infrastructure\Controllers\AuditController;
 
 Route::prefix('v1')->group(function () {
     // Auth (público)
@@ -9,22 +17,52 @@ Route::prefix('v1')->group(function () {
 
     // Protected Routes
     Route::middleware('auth:api')->group(function () {
-            // Auth
-            Route::post('auth/logout', [AuthController::class, 'logout']);
-            // Clinic
-            Route::get('clinic', [\Src\Lockers\Infrastructure\Controllers\ClinicController::class , 'getClinic']);
-            Route::patch('clinic/settings', [\Src\Lockers\Infrastructure\Controllers\ClinicController::class , 'updateSettings']);
+        // Auth
+        Route::post('auth/logout', [AuthController::class, 'logout']);
 
-            // Inventory
-            Route::get('inventory', [\Src\Inventory\Infrastructure\Controllers\InventoryController::class , 'index']);
-            Route::post('inventory/adjust', [\Src\Inventory\Infrastructure\Controllers\InventoryController::class , 'adjust']);
+        // Clinic
+        Route::get('clinic', [ClinicController::class, 'getClinic']);
+        Route::patch('clinic/settings', [ClinicController::class, 'updateSettings']);
 
-            // Open Orders
-            Route::get('open-orders', [\Src\OpenOrders\Infrastructure\Controllers\OpenOrderController::class , 'index']);
-            Route::post('open-orders', [\Src\OpenOrders\Infrastructure\Controllers\OpenOrderController::class , 'create']);
-            Route::post('open-orders/{id}/confirm-read', [\Src\OpenOrders\Infrastructure\Controllers\OpenOrderController::class , 'confirmRead']);
+        // Products
+        Route::get('products', [ProductController::class, 'index']);
+        Route::get('products/{id}', [ProductController::class, 'show']);
+        Route::post('products', [ProductController::class, 'store']);
+        Route::patch('products/{id}', [ProductController::class, 'update']);
+        Route::delete('products/{id}', [ProductController::class, 'destroy']);
 
-            // Audit Logs
-            Route::get('audit-logs', [\Src\Audit\Infrastructure\Controllers\AuditController::class , 'index']);
+        // Users
+        Route::get('users', [UserController::class, 'index']);
+        Route::get('users/{id}', [UserController::class, 'show']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::patch('users/{id}', [UserController::class, 'update']);
+        Route::delete('users/{id}', [UserController::class, 'destroy']);
+
+        // Lockers
+        Route::get('lockers', [LockerController::class, 'index']);
+        Route::get('lockers/{id}/compartments', [CompartmentController::class, 'indexByLocker']);
+        Route::get('lockers/{id}', [LockerController::class, 'show']);
+        Route::post('lockers', [LockerController::class, 'store']);
+        Route::patch('lockers/{id}', [LockerController::class, 'update']);
+        Route::delete('lockers/{id}', [LockerController::class, 'destroy']);
+
+        // Compartments
+        Route::get('compartments', [CompartmentController::class, 'index']);
+        Route::get('compartments/{id}', [CompartmentController::class, 'show']);
+        Route::post('compartments', [CompartmentController::class, 'store']);
+        Route::patch('compartments/{id}', [CompartmentController::class, 'update']);
+        Route::delete('compartments/{id}', [CompartmentController::class, 'destroy']);
+
+        // Inventory
+        Route::get('inventory', [InventoryController::class, 'index']);
+        Route::post('inventory/adjust', [InventoryController::class, 'adjust']);
+
+        // Open Orders
+        Route::get('open-orders', [OpenOrderController::class, 'index']);
+        Route::post('open-orders', [OpenOrderController::class, 'create']);
+        Route::post('open-orders/{id}/confirm-read', [OpenOrderController::class, 'confirmRead']);
+
+        // Audit Logs
+        Route::get('audit-logs', [AuditController::class, 'index']);
     });
 });
