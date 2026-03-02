@@ -4,13 +4,13 @@ use Illuminate\Support\Facades\Route;
 use Src\Identity\Infrastructure\Controllers\AuthController;
 
 Route::prefix('v1')->group(function () {
-    // Auth
-    Route::post('login', [AuthController::class , 'login']);
+    // Auth (público)
+    Route::post('auth/login', [AuthController::class, 'login']);
 
     // Protected Routes
     Route::middleware('auth:api')->group(function () {
             // Auth
-            Route::post('logout', [AuthController::class, 'logout']);
+            Route::post('auth/logout', [AuthController::class, 'logout']);
             // Clinic
             Route::get('clinic', [\Src\Lockers\Infrastructure\Controllers\ClinicController::class , 'getClinic']);
             Route::patch('clinic/settings', [\Src\Lockers\Infrastructure\Controllers\ClinicController::class , 'updateSettings']);
