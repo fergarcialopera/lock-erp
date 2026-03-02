@@ -9,6 +9,8 @@ Route::prefix('v1')->group(function () {
 
     // Protected Routes
     Route::middleware('auth:api')->group(function () {
+            // Auth
+            Route::post('logout', [AuthController::class, 'logout']);
             // Clinic
             Route::get('clinic', [\Src\Lockers\Infrastructure\Controllers\ClinicController::class , 'getClinic']);
             Route::patch('clinic/settings', [\Src\Lockers\Infrastructure\Controllers\ClinicController::class , 'updateSettings']);
@@ -24,6 +26,5 @@ Route::prefix('v1')->group(function () {
 
             // Audit Logs
             Route::get('audit-logs', [\Src\Audit\Infrastructure\Controllers\AuditController::class , 'index']);
-        }
-        );
     });
+});
