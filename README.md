@@ -61,6 +61,8 @@ docker exec lockerp_app php artisan test
 
 ## Documentación de Endpoints 📜
 
+**Contrato API (OpenAPI/Swagger):** La especificación completa de la API está en **`docs/openapi.yaml`**. Sirve como contrato entre backend y frontend; hay que mantenerla actualizada al añadir o modificar endpoints (ver `docs/README.md`).
+
 Todos los endpoints (excepto el login) están bajo protección de acceso **JWT Bearer** y bajo el guard de acceso de Roles mediante **Policies (Gates)** definidos en el `AppServiceProvider`.
 
 **URL Base:** `http://localhost:8000/api/v1`

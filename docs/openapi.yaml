@@ -1,0 +1,810 @@
+# Lock-ERP API - OpenAPI 3.0
+# Contrato entre backend (Laravel) y frontend.
+# IMPORTANTE: Actualizar este fichero cada vez que se añada o modifique un endpoint.
+# Ubicación de rutas en el proyecto: routes/api.php
+
+openapi: 3.0.3
+info:
+  title: Lock-ERP API
+  description: API REST del sistema Lock-ERP. Autenticación JWT Bearer en todos los endpoints excepto login.
+  version: 1.0.0
+  contact:
+    name: Lock-ERP
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Auth
+    description: Autenticación (login público, logout protegido)
+  - name: Clinic
+    description: Configuración de la clínica
+  - name: Products
+    description: CRUD de productos
+  - name: Users
+    description: CRUD de usuarios (solo ADMIN)
+  - name: Lockers
+    description: CRUD de lockers/armarios
+  - name: Compartments
+    description: CRUD de compartimentos
+  - name: Inventory
+    description: Inventario por compartimento
+  - name: Open Orders
+    description: Órdenes de retiro
+  - name: Audit
+    description: Logs de auditoría
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------- Auth ----------
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      description: Devuelve un JWT. No requiere autenticación.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login correcto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: bearer
+                  expires_in:
+                    type: integer
+                    description: Segundos hasta expiración
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar sesión
+      description: Invalida el token actual. Requiere Bearer token.
+      responses:
+        '200':
+          description: Logout correcto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out
+
+  # ---------- Clinic ----------
+  /clinic:
+    get:
+      tags: [Clinic]
+      summary: Obtener clínica del usuario
+      responses:
+        '200':
+          description: Datos de la clínica
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Clinic' }
+
+  /clinic/settings:
+    patch:
+      tags: [Clinic]
+      summary: Actualizar configuración de la clínica
+      description: Solo ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [open_latency_ms]
+              properties:
+                open_latency_ms:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Configuración actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Settings updated successfully
+
+  # ---------- Products ----------
+  /products:
+    get:
+      tags: [Products]
+      summary: Listar productos
+      parameters:
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+    post:
+      tags: [Products]
+      summary: Crear producto
+      description: ADMIN o RESPONSABLE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sku, name]
+              properties:
+                sku:
+                  type: string
+                name:
+                  type: string
+                barcode:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Producto creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '422':
+          description: Validación fallida (ej. SKU duplicado)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /products/{id}:
+    get:
+      tags: [Products]
+      summary: Obtener producto por ID
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    patch:
+      tags: [Products]
+      summary: Actualizar producto
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sku: { type: string }
+                name: { type: string }
+                barcode: { type: string, nullable: true }
+                is_active: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404':
+        '422':
+    delete:
+      tags: [Products]
+      summary: Desactivar producto (soft)
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product deactivated successfully
+        '404':
+
+  # ---------- Users ----------
+  /users:
+    get:
+      tags: [Users]
+      summary: Listar usuarios
+      description: Solo ADMIN
+      parameters:
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Lista de usuarios (sin password)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+    post:
+      tags: [Users]
+      summary: Crear usuario
+      description: Solo ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                role:
+                  type: string
+                  enum: [ADMIN, RESPONSABLE, READONLY]
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '422':
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Obtener usuario por ID
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '404':
+    patch:
+      tags: [Users]
+      summary: Actualizar usuario
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, nullable: true }
+                role: { type: string, enum: [ADMIN, RESPONSABLE, READONLY] }
+                is_active: { type: boolean }
+      responses:
+        '200':
+        '404':
+        '422':
+    delete:
+      tags: [Users]
+      summary: Desactivar usuario (soft)
+      description: No se puede desactivar el propio usuario
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User deactivated successfully
+        '404':
+        '422':
+
+  # ---------- Lockers ----------
+  /lockers:
+    get:
+      tags: [Lockers]
+      summary: Listar lockers
+      parameters:
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Locker' }
+    post:
+      tags: [Lockers]
+      summary: Crear locker
+      description: ADMIN o RESPONSABLE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code: { type: string }
+                name: { type: string }
+                location: { type: string, nullable: true }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Locker' }
+        '422':
+
+  /lockers/{id}:
+    get:
+      tags: [Lockers]
+      summary: Obtener locker con sus compartimentos
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Locker' }
+                  - type: object
+                    properties:
+                      compartments:
+                        type: array
+                        items: { $ref: '#/components/schemas/Compartment' }
+        '404':
+    patch:
+      tags: [Lockers]
+      summary: Actualizar locker
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string }
+                name: { type: string }
+                location: { type: string, nullable: true }
+                is_active: { type: boolean }
+      responses:
+        '200':
+        '404':
+        '422':
+    delete:
+      tags: [Lockers]
+      summary: Desactivar locker (soft)
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+        '404':
+
+  /lockers/{id}/compartments:
+    get:
+      tags: [Lockers]
+      summary: Listar compartimentos de un locker
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Compartment' }
+        '404':
+
+  # ---------- Compartments ----------
+  /compartments:
+    get:
+      tags: [Compartments]
+      summary: Listar compartimentos
+      parameters:
+        - name: locker_id
+          in: query
+          schema:
+            type: string
+            format: ulid
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Compartment' }
+    post:
+      tags: [Compartments]
+      summary: Crear compartimento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locker_id, code]
+              properties:
+                locker_id: { type: string, format: ulid }
+                code: { type: string }
+                status:
+                  type: string
+                  enum: [AVAILABLE, MAINTENANCE]
+                  nullable: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Compartment' }
+        '404':
+        '422':
+
+  /compartments/{id}:
+    get:
+      tags: [Compartments]
+      summary: Obtener compartimento por ID
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Compartment' }
+        '404':
+    patch:
+      tags: [Compartments]
+      summary: Actualizar compartimento
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string }
+                status: { type: string, enum: [AVAILABLE, MAINTENANCE] }
+                is_active: { type: boolean }
+      responses:
+        '200':
+        '404':
+        '422':
+    delete:
+      tags: [Compartments]
+      summary: Desactivar compartimento (soft)
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+        '404':
+
+  # ---------- Inventory ----------
+  /inventory:
+    get:
+      tags: [Inventory]
+      summary: Listar inventario por compartimento/producto
+      parameters:
+        - name: compartment_id
+          in: query
+          schema:
+            type: string
+            format: ulid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CompartmentInventory' }
+
+  /inventory/adjust:
+    post:
+      tags: [Inventory]
+      summary: Ajustar stock en un compartimento
+      description: ADMIN o RESPONSABLE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compartment_id, product_id, qty_available]
+              properties:
+                compartment_id: { type: string, format: ulid }
+                product_id: { type: string, format: ulid }
+                qty_available:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Inventory adjusted
+
+  # ---------- Open Orders ----------
+  /open-orders:
+    get:
+      tags: [Open Orders]
+      summary: Listar órdenes de retiro
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, RETIRED, CANCELLED]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OpenOrder' }
+    post:
+      tags: [Open Orders]
+      summary: Crear orden de retiro (idempotente)
+      description: ADMIN o RESPONSABLE. Idempotencia vía header Idempotency-Key o body external_ref.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Clave de idempotencia (opcional)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compartment_id, product_id, quantity]
+              properties:
+                compartment_id: { type: string, format: ulid }
+                product_id: { type: string, format: ulid }
+                quantity: { type: integer, minimum: 1 }
+                external_ref: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Orden ya existente (idempotencia)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OpenOrder' }
+        '201':
+          description: Orden creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OpenOrder' }
+        '400':
+          description: Sin stock suficiente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /open-orders/{id}/confirm-read:
+    post:
+      tags: [Open Orders]
+      summary: Confirmar lectura/retiro de orden
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+        - name: occurred_at
+          in: query
+          schema:
+            type: string
+            format: date-time
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                occurred_at: { type: string, format: date-time }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Read confirmed
+        '404':
+
+  # ---------- Audit ----------
+  /audit-logs:
+    get:
+      tags: [Audit]
+      summary: Listar últimos logs de auditoría
+      description: ADMIN o RESPONSABLE. Últimos 100 registros.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AuditLog' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token obtenido de POST /auth/login
+
+  parameters:
+    UlidPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[0-9A-HJ-NP-Za-km-z]{26}$'
+      description: ULID del recurso
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensaje de error
+      required: [error]
+
+    Clinic:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        name: { type: string }
+        settings: { type: object, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    User:
+      type: object
+      description: Usuario (password nunca se expone)
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [ADMIN, RESPONSABLE, READONLY] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        sku: { type: string }
+        name: { type: string }
+        barcode: { type: string, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Locker:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        code: { type: string }
+        name: { type: string }
+        location: { type: string, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Compartment:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        locker_id: { type: string, format: ulid }
+        code: { type: string }
+        status: { type: string, enum: [AVAILABLE, MAINTENANCE] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CompartmentInventory:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        compartment_id: { type: string, format: ulid }
+        product_id: { type: string, format: ulid }
+        qty_available: { type: integer }
+        qty_reserved: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    OpenOrder:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        requested_by_user_id: { type: string, format: ulid }
+        locker_id: { type: string, format: ulid }
+        compartment_id: { type: string, format: ulid }
+        product_id: { type: string, format: ulid }
+        quantity: { type: integer }
+        status: { type: string, enum: [PENDING, RETIRED, CANCELLED] }
+        requested_at: { type: string, format: date-time }
+        read_at: { type: string, format: date-time, nullable: true }
+        external_ref: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AuditLog:
+      type: object
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        actor_user_id: { type: string, format: ulid, nullable: true }
+        actor_type: { type: string, enum: [USER, SYSTEM] }
+        action: { type: string }
+        entity_type: { type: string }
+        entity_id: { type: string }
+        occurred_at: { type: string, format: date-time }
+        payload: { type: object, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
