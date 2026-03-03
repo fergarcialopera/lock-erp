@@ -4,21 +4,21 @@ namespace Src\Audit\Infrastructure\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Src\Audit\Application\Services\AuditService;
 
 class AuditController extends Controller
 {
+    public function __construct(
+        private readonly AuditService $auditService
+    ) {
+    }
+
     public function index(Request $request)
     {
         Gate::authorize('view-audit');
-        $user = $request->user();
 
-        $logs = DB::table('audit_logs')
-            ->where('clinic_id', $user->clinic_id)
-            ->orderBy('occurred_at', 'desc')
-            ->limit(100)
-            ->get();
+        $logs = $this->auditService->list($request->user()->clinic_id);
 
         return response()->json($logs);
     }

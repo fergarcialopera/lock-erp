@@ -4,43 +4,33 @@ namespace Src\Lockers\Infrastructure\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
+use Src\Lockers\Application\Services\LockerService;
 
 class LockerController extends Controller
 {
+    public function __construct(
+        private readonly LockerService $lockerService
+    ) {
+    }
+
     public function index(Request $request)
     {
-        $clinicId = $request->user()->clinic_id;
-        $query = DB::table('lockers')->where('clinic_id', $clinicId);
+        $lockers = $this->lockerService->list(
+            $request->user()->clinic_id,
+            $request->boolean('active_only', true)
+        );
 
-        if ($request->boolean('active_only', true)) {
-            $query->where('is_active', true);
-        }
-
-        return response()->json($query->orderBy('code')->get());
+        return response()->json($lockers);
     }
 
     public function show(Request $request, string $id)
     {
-        $clinicId = $request->user()->clinic_id;
-        $locker = DB::table('lockers')
-            ->where('clinic_id', $clinicId)
-            ->where('id', $id)
-            ->first();
+        $locker = $this->lockerService->findWithCompartments($id, $request->user()->clinic_id);
 
         if (!$locker) {
             return response()->json(['error' => 'Locker not found'], 404);
         }
-
-        $compartments = DB::table('compartments')
-            ->where('locker_id', $id)
-            ->orderBy('code')
-            ->get();
-
-        $locker = (array) $locker;
-        $locker['compartments'] = $compartments;
 
         return response()->json($locker);
     }
@@ -55,32 +45,12 @@ class LockerController extends Controller
             'location' => 'nullable|string|max:255',
         ]);
 
-        $clinicId = $request->user()->clinic_id;
-
-        $exists = DB::table('lockers')
-            ->where('clinic_id', $clinicId)
-            ->where('code', $validated['code'])
-            ->exists();
-
-        if ($exists) {
-            return response()->json(['error' => 'A locker with this code already exists'], 422);
+        try {
+            $locker = $this->lockerService->create($request->user()->clinic_id, $validated);
+            return response()->json($locker, 201);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         }
-
-        $id = Str::ulid()->toString();
-        DB::table('lockers')->insert([
-            'id' => $id,
-            'clinic_id' => $clinicId,
-            'code' => $validated['code'],
-            'name' => $validated['name'],
-            'location' => $validated['location'] ?? null,
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $locker = DB::table('lockers')->where('id', $id)->first();
-
-        return response()->json($locker, 201);
     }
 
     public function update(Request $request, string $id)
@@ -94,61 +64,28 @@ class LockerController extends Controller
             'is_active' => 'sometimes|boolean',
         ]);
 
-        $clinicId = $request->user()->clinic_id;
+        try {
+            $locker = $this->lockerService->update($id, $request->user()->clinic_id, $validated);
 
-        $locker = DB::table('lockers')
-            ->where('clinic_id', $clinicId)
-            ->where('id', $id)
-            ->first();
-
-        if (!$locker) {
-            return response()->json(['error' => 'Locker not found'], 404);
-        }
-
-        if (isset($validated['code']) && $validated['code'] !== $locker->code) {
-            $exists = DB::table('lockers')
-                ->where('clinic_id', $clinicId)
-                ->where('code', $validated['code'])
-                ->where('id', '!=', $id)
-                ->exists();
-
-            if ($exists) {
-                return response()->json(['error' => 'A locker with this code already exists'], 422);
+            if (!$locker) {
+                return response()->json(['error' => 'Locker not found'], 404);
             }
+
+            return response()->json($locker);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         }
-
-        $updateData = array_intersect_key($validated, array_flip(['code', 'name', 'location', 'is_active']));
-        $updateData['updated_at'] = now();
-
-        DB::table('lockers')
-            ->where('clinic_id', $clinicId)
-            ->where('id', $id)
-            ->update($updateData);
-
-        $locker = DB::table('lockers')->where('id', $id)->first();
-
-        return response()->json($locker);
     }
 
     public function destroy(Request $request, string $id)
     {
         Gate::authorize('manage-inventory');
 
-        $clinicId = $request->user()->clinic_id;
+        $deactivated = $this->lockerService->deactivate($id, $request->user()->clinic_id);
 
-        $locker = DB::table('lockers')
-            ->where('clinic_id', $clinicId)
-            ->where('id', $id)
-            ->first();
-
-        if (!$locker) {
+        if (!$deactivated) {
             return response()->json(['error' => 'Locker not found'], 404);
         }
-
-        DB::table('lockers')
-            ->where('clinic_id', $clinicId)
-            ->where('id', $id)
-            ->update(['is_active' => false, 'updated_at' => now()]);
 
         return response()->json(['message' => 'Locker deactivated successfully']);
     }
