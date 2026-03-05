@@ -17,6 +17,18 @@ El fichero **`openapi.yaml`** define el contrato entre el backend (Laravel) y el
    - Reutilizar o extender los `components/schemas` existentes si aplica.
 2. Si aparece un nuevo tipo de recurso, añadir un schema en `components/schemas` y usarlo en los paths.
 
+### Documentación expuesta (visible para el frontend)
+
+La API expone la especificación OpenAPI para que el frontend pueda consumirla siempre actualizada:
+
+| URL | Descripción |
+|-----|-------------|
+| `GET /api-docs` | Especificación en YAML (Content-Type: application/x-yaml) |
+| `GET /api-docs.json` | Especificación en JSON (para clientes y Swagger UI) |
+| `GET /docs` | Interfaz Swagger UI en el navegador |
+
+El frontend puede hacer `GET /api-docs.json` contra la base URL del backend (ej. `http://localhost:8000/api-docs.json`) para obtener el contrato actualizado y generar tipos, clientes o validaciones.
+
 ### Servidor base
 
 En el fichero OpenAPI el `servers[0].url` es `/api/v1`. Al usar herramientas (Swagger UI, Postman, etc.) configura la base URL completa (ej. `http://localhost:8000`) para que las peticiones apunten a `http://localhost:8000/api/v1/...`.

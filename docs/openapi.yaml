@@ -34,6 +34,8 @@ tags:
     description: Órdenes de retiro
   - name: Audit
     description: Logs de auditoría
+  - name: Dashboard
+    description: Resumen general para el panel de control
 
 security:
   - bearerAuth: []
@@ -137,6 +139,25 @@ paths:
                   message:
                     type: string
                     example: Settings updated successfully
+
+  # ---------- Dashboard ----------
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Información general para el Dashboard
+      description: |
+        Devuelve resumen de la aplicación para el panel de control:
+        - Número de productos activos
+        - Número de lockers disponibles (activos)
+        - Órdenes pendientes de confirmar (status PENDING)
+        - Si hay inventario bajo en algún producto (algún producto activo con stock total <= 0)
+        - Últimas 5 órdenes (cualquier estado)
+      responses:
+        '200':
+          description: Datos del dashboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dashboard' }
 
   # ---------- Products ----------
   /products:
@@ -700,6 +721,33 @@ components:
       description: ULID del recurso
 
   schemas:
+    Dashboard:
+      type: object
+      description: Resumen general para el panel de control
+      properties:
+        active_products_count:
+          type: integer
+          description: Número de productos activos
+        available_lockers_count:
+          type: integer
+          description: Número de lockers disponibles (activos)
+        pending_orders_count:
+          type: integer
+          description: Órdenes pendientes de confirmar (PENDING)
+        has_low_stock:
+          type: boolean
+          description: true si algún producto activo tiene stock total <= 0
+        latest_orders:
+          type: array
+          description: Últimas 5 órdenes (cualquier estado)
+          items: { $ref: '#/components/schemas/OpenOrder' }
+      required:
+        - active_products_count
+        - available_lockers_count
+        - pending_orders_count
+        - has_low_stock
+        - latest_orders
+
     Error:
       type: object
       properties:
