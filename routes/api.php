@@ -10,6 +10,7 @@ use Src\Lockers\Infrastructure\Controllers\LockerController;
 use Src\Lockers\Infrastructure\Controllers\CompartmentController;
 use Src\OpenOrders\Infrastructure\Controllers\OpenOrderController;
 use Src\Audit\Infrastructure\Controllers\AuditController;
+use Src\Dashboard\Infrastructure\Controllers\DashboardController;
 
 Route::prefix('v1')->group(function () {
     // Auth (público)
@@ -23,6 +24,9 @@ Route::prefix('v1')->group(function () {
         // Clinic
         Route::get('clinic', [ClinicController::class, 'getClinic']);
         Route::patch('clinic/settings', [ClinicController::class, 'updateSettings']);
+
+        // Dashboard
+        Route::get('dashboard', [DashboardController::class, 'index']);
 
         // Products
         Route::get('products', [ProductController::class, 'index']);

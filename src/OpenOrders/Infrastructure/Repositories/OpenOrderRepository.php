@@ -19,6 +19,16 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
         return $query->get()->all();
     }
 
+    public function listLatestByClinic(string $clinicId, int $limit = 5): array
+    {
+        return DB::table('open_orders')
+            ->where('clinic_id', $clinicId)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->all();
+    }
+
     public function findByExternalRef(string $clinicId, string $externalRef): ?object
     {
         return DB::table('open_orders')

@@ -6,6 +6,8 @@ interface OpenOrderRepositoryInterface
 {
     public function listByClinic(string $clinicId, ?string $status = null): array;
 
+    public function listLatestByClinic(string $clinicId, int $limit = 5): array;
+
     public function findByExternalRef(string $clinicId, string $externalRef): ?object;
 
     public function findByIdAndClinicForUpdate(string $id, string $clinicId): ?object;
