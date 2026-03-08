@@ -1,5 +1,9 @@
 # Documentación API
 
+## Referencia y migración frontend
+
+- **[\`API.md\`](API.md)** — Documentación de todos los endpoints actuales y **tabla de mapeo antiguos → nuevos** para pasar al frontend (rutas, cambios de respuesta enriquecida, ejemplos JSON).
+
 ## Contrato OpenAPI
 
 El fichero **`openapi.yaml`** define el contrato entre el backend (Laravel) y el frontend en formato OpenAPI 3.0.

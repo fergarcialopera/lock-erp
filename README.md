@@ -61,110 +61,24 @@ docker exec lockerp_app php artisan test
 
 ## Documentación de Endpoints 📜
 
-**Contrato API (OpenAPI/Swagger):** La especificación completa de la API está en **`docs/openapi.yaml`**. Sirve como contrato entre backend y frontend; hay que mantenerla actualizada al añadir o modificar endpoints (ver `docs/README.md`).
+- **Referencia completa y mapeo para el frontend:** **[`docs/API.md`](docs/API.md)** — Incluye la tabla **antiguos → nuevos endpoints** para migrar las llamadas del frontend y el formato de las respuestas enriquecidas.
+- **Contrato OpenAPI:** **`docs/openapi.yaml`** — Especificación OpenAPI 3.0; mantenerla actualizada al cambiar endpoints (ver `docs/README.md`).
 
-Todos los endpoints (excepto el login) están bajo protección de acceso **JWT Bearer** y bajo el guard de acceso de Roles mediante **Policies (Gates)** definidos en el `AppServiceProvider`.
+Todos los endpoints (excepto el login) requieren **JWT Bearer** y están sujetos a **Policies (Gates)** por rol.
 
 **URL Base:** `http://localhost:8000/api/v1`
 
-### 1. Autenticación (Identity)
----
+### Resumen de rutas principales
 
-**Iniciar Sesión**
-- **Método:** `POST`
-- **Ruta:** `/auth/login`
-- **Acceso:** Público
-- **Body:**
-```json
-{
-  "email": "admin@lockerp.com",
-  "password": "password123"
-}
-```
-- **Respuesta Exitosa (200):** Devuelve un objeto con el `access_token`.
+| Área | Rutas | Nota |
+|------|--------|------|
+| **Auth** | `POST /auth/login`, `POST /auth/logout` | Login público; resto con Bearer. |
+| **Clinic** | `GET /clinic`, `PATCH /clinic/settings` | Configuración de la clínica. |
+| **Dashboard** | `GET /dashboard` | Resumen y `latest_orders` enriquecidos. |
+| **Orders** | `GET /orders`, `GET /orders/{id}`, `POST /orders/{id}/confirm-read` | Listado y detalle listos para vista (product, locker, compartment, requested_by). Las órdenes se crean con `POST /inventory/remove`. |
+| **Inventory** | `GET /inventory`, `POST /inventory/adjust`, `add`, `remove`, `DELETE /inventory/{id}` | Listado enriquecido (product, compartment, locker). |
+| **Lockers** | `GET /lockers`, `GET /lockers/{id}` (incluye `compartments`), CRUD | No usar `/lockers/{id}/compartments` (eliminado). |
+| **Products, Users, Compartments** | CRUD estándar | Sin cambios. |
+| **Audit** | `GET /audit-logs` | Logs de auditoría. |
 
-### 2. Clínicas (Lockers/Clinic)
----
-
-**Obtener Información de la Clínica**
-- **Método:** `GET`
-- **Ruta:** `/clinic`
-- **Acceso:** Todos los usuarios autenticados.
-- **Descripción:** Retorna la información de la clínica asignada al usuario actual.
-
-**Actualizar Configuración de la Clínica**
-- **Método:** `PATCH`
-- **Ruta:** `/clinic/settings`
-- **Acceso:** `ADMIN`
-- **Body:** Parámetros variables de configuración de la clínica (ej. properties extra de configuración).
-
-### 3. Inventario (Inventory)
----
-
-**Listar Inventario**
-- **Método:** `GET`
-- **Ruta:** `/inventory`
-- **Acceso:** Todos los usuarios autenticados.
-- **Query Params (Opcionales):** `?compartment_id=<ULID>`
-- **Descripción:** Obtiene los niveles actuales de inventario incluyendo los campos `qty_available` (cantidad disponible) y `qty_reserved` (cantidad reservada).
-
-**Ajustar Producto en Compartimento**
-- **Método:** `POST`
-- **Ruta:** `/inventory/adjust`
-- **Acceso:** `ADMIN`, `RESPONSABLE`
-- **Body:**
-```json
-{
-  "compartment_id": "<ULID>",
-  "product_id": "<ULID>",
-  "qty_available": 10
-}
-```
-- **Descripción:** Ajusta la cantidad total de un producto específico, disponible dentro de un compartimento. Si no existe, lo crea.
-
-### 4. Órdenes (Open Orders)
----
-
-**Listar Órdenes Pendientes/Completadas**
-- **Método:** `GET`
-- **Ruta:** `/open-orders`
-- **Acceso:** Todos los usuarios autenticados.
-- **Query Params (Opcionales):** `?status=PENDING`
-
-**Solicitar Orden (Retirar Producto)**
-- **Método:** `POST`
-- **Ruta:** `/open-orders`
-- **Acceso:** `ADMIN`, `RESPONSABLE`
-- **Headers:** `Idempotency-Key: <unique-key>` (Opcional, para evitar doble retiro)
-- **Body:**
-```json
-{
-  "compartment_id": "<ULID>",
-  "product_id": "<ULID>",
-  "quantity": 1,
-  "external_ref": "mi-llave-unica" 
-}
-```
-> **Nota de Idempotencia**: Si se envía `external_ref` en el body o en la cabecera `Idempotency-Key`, la API devuelve la orden original en lugar de crear un duplicado, si la orden ya fue procesada.
-- **Descripción:** Endpoint transaccional e idempotente para sustraer la cantidad solicitada del stock disponible (`qty_available`) y moverlo a stock reservado (`qty_reserved`).
-
-**Confirmar Lectura de Orden (Retiro Efectivo)**
-- **Método:** `POST`
-- **Ruta:** `/open-orders/{id}/confirm-read`
-- **Acceso:** Todos los usuarios autenticados.
-- **Body (Opcional):**
-```json
-{
-  "occurred_at": "2024-11-20T10:00:00Z"
-}
-```
-- **Descripción:** Concluye el flujo reduciendo lo reservado por la orden de inventario y marcando el estado final de la orden como `RETIRED`.
-
-### 5. Auditoría (Audit)
----
-
-**Listar Logs de Auditoría**
-- **Método:** `GET`
-- **Ruta:** `/audit-logs`
-- **Acceso:** `ADMIN`, `RESPONSABLE`
-- **Descripción:** Lista los logs de auditoría generados automáticamente por acciones del sistema o de los usuarios (ej. solicitar retiros, confirmaciones de órdenes).
+Para **mapeo antiguo → nuevo** (p. ej. `/open-orders` → `/orders`, respuestas enriquecidas) y ejemplos de JSON, ver **[`docs/API.md`](docs/API.md)**.

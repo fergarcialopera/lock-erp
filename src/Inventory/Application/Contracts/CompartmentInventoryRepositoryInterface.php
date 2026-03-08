@@ -6,6 +6,9 @@ interface CompartmentInventoryRepositoryInterface
 {
     public function listByClinic(string $clinicId, ?string $compartmentId = null): array;
 
+    /** @return array Lista para vista con product, compartment y locker resueltos. */
+    public function listByClinicForDisplay(string $clinicId, ?string $compartmentId = null): array;
+
     public function updateOrCreate(string $clinicId, string $compartmentId, string $productId, int $qtyAvailable): void;
 
     public function find(string $clinicId, string $compartmentId, string $productId): ?object;

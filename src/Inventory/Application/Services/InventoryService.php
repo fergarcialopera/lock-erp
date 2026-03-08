@@ -21,9 +21,10 @@ class InventoryService
     ) {
     }
 
+    /** Listado para vista: inventario con product, compartment y locker resueltos. */
     public function list(string $clinicId, ?string $compartmentId = null): array
     {
-        return $this->inventoryRepository->listByClinic($clinicId, $compartmentId);
+        return $this->inventoryRepository->listByClinicForDisplay($clinicId, $compartmentId);
     }
 
     public function adjust(string $clinicId, string $userId, string $compartmentId, string $productId, int $qtyAvailable): void

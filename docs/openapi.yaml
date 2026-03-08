@@ -30,8 +30,8 @@ tags:
     description: CRUD de compartimentos
   - name: Inventory
     description: Inventario por compartimento
-  - name: Open Orders
-    description: Órdenes de retiro
+  - name: Orders
+    description: Órdenes de retiro (listado y detalle enriquecidos para vista)
   - name: Audit
     description: Logs de auditoría
   - name: Dashboard
@@ -446,26 +446,6 @@ paths:
         '200':
         '404':
 
-  /lockers/{id}/compartments:
-    get:
-      tags: [Lockers]
-      summary: Listar compartimentos de un locker
-      parameters:
-        - $ref: '#/components/parameters/UlidPath'
-        - name: active_only
-          in: query
-          schema:
-            type: boolean
-            default: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Compartment' }
-        '404':
-
   # ---------- Compartments ----------
   /compartments:
     get:
@@ -557,7 +537,8 @@ paths:
   /inventory:
     get:
       tags: [Inventory]
-      summary: Listar inventario por compartimento/producto
+      summary: Listar inventario para vista (enriquecido)
+      description: Cada ítem incluye product, compartment y locker resueltos (no solo IDs).
       parameters:
         - name: compartment_id
           in: query
@@ -570,7 +551,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/CompartmentInventory' }
+                items: { $ref: '#/components/schemas/InventoryItemForDisplay' }
 
   /inventory/adjust:
     post:
@@ -716,12 +697,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
-  # ---------- Open Orders ----------
-  /open-orders:
+  # ---------- Orders ----------
+  /orders:
     get:
-      tags: [Open Orders]
-      summary: Listar órdenes de retiro
-      description: Las órdenes solo se crean al solicitar una retirada desde inventario (POST /inventory/remove).
+      tags: [Orders]
+      summary: Listar órdenes de retiro (para vista)
+      description: |
+        Devuelve órdenes con product, locker, compartment y requested_by resueltos.
+        Las órdenes solo se crean al solicitar una retirada (POST /inventory/remove).
       parameters:
         - name: status
           in: query
@@ -734,19 +717,32 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/OpenOrder' }
+                items: { $ref: '#/components/schemas/OrderForDisplay' }
 
-  /open-orders/{id}/confirm-read:
-    post:
-      tags: [Open Orders]
-      summary: Confirmar lectura/retiro de orden
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Obtener detalle de una orden
+      description: Misma estructura enriquecida que un ítem del listado (product, locker, compartment, requested_by).
       parameters:
         - $ref: '#/components/parameters/UlidPath'
-        - name: occurred_at
-          in: query
-          schema:
-            type: string
-            format: date-time
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderForDisplay' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /orders/{id}/confirm-read:
+    post:
+      tags: [Orders]
+      summary: Confirmar lectura/retiro de orden
+      description: Concluye el flujo y marca la orden como RETIRED.
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
       requestBody:
         content:
           application/json:
@@ -765,6 +761,9 @@ paths:
                     type: string
                     example: Read confirmed
         '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   # ---------- Audit ----------
   /audit-logs:
@@ -817,8 +816,8 @@ components:
           description: true si algún producto activo tiene stock total <= 0
         latest_orders:
           type: array
-          description: Últimas 5 órdenes (cualquier estado)
-          items: { $ref: '#/components/schemas/OpenOrder' }
+          description: Últimas 5 órdenes enriquecidas (product, locker, compartment, requested_by)
+          items: { $ref: '#/components/schemas/OrderForDisplay' }
       required:
         - active_products_count
         - available_lockers_count
@@ -903,16 +902,99 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
-    OpenOrder:
+    OrderForDisplay:
       type: object
-      description: Orden de retiro. Se crea al solicitar una retirada desde inventario (POST /inventory/remove). El usuario responsable es el autenticado.
+      description: Orden de retiro con relaciones resueltas para vista (GET /orders, GET /orders/{id}, dashboard latest_orders).
+      properties:
+        id: { type: string, format: ulid }
+        status: { type: string, enum: [PENDING, RETIRED, CANCELLED] }
+        quantity: { type: integer }
+        requested_at: { type: string, format: date-time }
+        read_at: { type: string, format: date-time, nullable: true }
+        external_ref: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time, nullable: true }
+        product:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            sku: { type: string }
+            name: { type: string }
+            barcode: { type: string, nullable: true }
+        locker:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            code: { type: string }
+            name: { type: string }
+            location: { type: string, nullable: true }
+        compartment:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            code: { type: string }
+            status: { type: string, nullable: true }
+        requested_by:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            name: { type: string }
+            email: { type: string }
+
+    InventoryItemForDisplay:
+      type: object
+      description: Entrada de inventario con product, compartment y locker resueltos (GET /inventory).
+      properties:
+        id: { type: string, format: ulid }
+        qty_available: { type: integer }
+        qty_reserved: { type: integer }
+        updated_at: { type: string, format: date-time }
+        product:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            sku: { type: string }
+            name: { type: string }
+            barcode: { type: string, nullable: true }
+        compartment:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            code: { type: string }
+        locker:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: ulid }
+            code: { type: string }
+            name: { type: string }
+
+    CompartmentInventory:
+      type: object
+      description: Entrada de inventario (forma interna; respuestas de add/remove pueden usarla).
       properties:
         id: { type: string, format: ulid }
         clinic_id: { type: string, format: ulid }
-        requested_by_user_id:
-          type: string
-          format: ulid
-          description: Usuario responsable de la solicitud (usuario autenticado que realizó la retirada).
+        compartment_id: { type: string, format: ulid }
+        product_id: { type: string, format: ulid }
+        qty_available: { type: integer }
+        qty_reserved: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    OpenOrder:
+      type: object
+      description: Orden cruda (p. ej. en respuesta de POST /inventory/remove). Para listados usar OrderForDisplay.
+      properties:
+        id: { type: string, format: ulid }
+        clinic_id: { type: string, format: ulid }
+        requested_by_user_id: { type: string, format: ulid }
         locker_id: { type: string, format: ulid }
         compartment_id: { type: string, format: ulid }
         product_id: { type: string, format: ulid }

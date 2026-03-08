@@ -16,9 +16,16 @@ class OpenOrderService
     ) {
     }
 
+    /** Listado para vista principal: órdenes con product, locker, compartment y requested_by resueltos. */
     public function list(string $clinicId, ?string $status = null): array
     {
-        return $this->openOrderRepository->listByClinic($clinicId, $status);
+        return $this->openOrderRepository->listByClinicForDisplay($clinicId, $status);
+    }
+
+    /** Detalle de una orden listo para vista: misma estructura enriquecida. */
+    public function getDetail(string $orderId, string $clinicId): ?array
+    {
+        return $this->openOrderRepository->findByIdAndClinicForDisplay($orderId, $clinicId);
     }
 
     public function confirmRead(string $orderId, string $clinicId, string $userId, ?\DateTimeInterface $occurredAt = null): array

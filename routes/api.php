@@ -8,7 +8,7 @@ use Src\Inventory\Infrastructure\Controllers\ProductController;
 use Src\Lockers\Infrastructure\Controllers\ClinicController;
 use Src\Lockers\Infrastructure\Controllers\LockerController;
 use Src\Lockers\Infrastructure\Controllers\CompartmentController;
-use Src\OpenOrders\Infrastructure\Controllers\OpenOrderController;
+use Src\OpenOrders\Infrastructure\Controllers\OrdersController;
 use Src\Audit\Infrastructure\Controllers\AuditController;
 use Src\Dashboard\Infrastructure\Controllers\DashboardController;
 
@@ -42,9 +42,8 @@ Route::prefix('v1')->group(function () {
         Route::patch('users/{id}', [UserController::class, 'update']);
         Route::delete('users/{id}', [UserController::class, 'destroy']);
 
-        // Lockers
+        // Lockers (detalle incluye compartimentos; no fragmentar en /lockers/{id}/compartments)
         Route::get('lockers', [LockerController::class, 'index']);
-        Route::get('lockers/{id}/compartments', [CompartmentController::class, 'indexByLocker']);
         Route::get('lockers/{id}', [LockerController::class, 'show']);
         Route::post('lockers', [LockerController::class, 'store']);
         Route::patch('lockers/{id}', [LockerController::class, 'update']);
@@ -64,9 +63,10 @@ Route::prefix('v1')->group(function () {
         Route::post('inventory/remove', [InventoryController::class, 'remove']);
         Route::delete('inventory/{id}', [InventoryController::class, 'destroy']);
 
-        // Open Orders (las órdenes solo se crean al retirar desde inventario: POST /inventory/remove)
-        Route::get('open-orders', [OpenOrderController::class, 'index']);
-        Route::post('open-orders/{id}/confirm-read', [OpenOrderController::class, 'confirmRead']);
+        // Orders (caso de uso: listado y detalle listos para vista; confirm-read para marcar leída)
+        Route::get('orders', [OrdersController::class, 'index']);
+        Route::get('orders/{id}', [OrdersController::class, 'show']);
+        Route::post('orders/{id}/confirm-read', [OrdersController::class, 'confirmRead']);
 
         // Audit Logs
         Route::get('audit-logs', [AuditController::class, 'index']);

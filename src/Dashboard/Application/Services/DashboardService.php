@@ -30,7 +30,7 @@ class DashboardService
         $activeProducts = $this->productRepository->listByClinic($clinicId, true);
         $availableLockers = $this->lockerRepository->listByClinic($clinicId, true);
         $pendingOrders = $this->openOrderRepository->listByClinic($clinicId, 'PENDING');
-        $latestOrders = $this->openOrderRepository->listLatestByClinic($clinicId, 5);
+        $latestOrders = $this->openOrderRepository->listLatestByClinicForDisplay($clinicId, 5);
 
         $hasLowStock = $this->checkHasLowStock($clinicId);
 
@@ -39,7 +39,7 @@ class DashboardService
             'available_lockers_count' => count($availableLockers),
             'pending_orders_count' => count($pendingOrders),
             'has_low_stock' => $hasLowStock,
-            'latest_orders' => array_map(fn ($o) => (array) $o, $latestOrders),
+            'latest_orders' => $latestOrders,
         ];
     }
 

@@ -20,6 +20,42 @@ class CompartmentInventoryRepository implements CompartmentInventoryRepositoryIn
         return $query->get()->all();
     }
 
+    public function listByClinicForDisplay(string $clinicId, ?string $compartmentId = null): array
+    {
+        $query = DB::table('compartment_inventories as i')
+            ->where('i.clinic_id', $clinicId)
+            ->leftJoin('products as p', 'i.product_id', '=', 'p.id')
+            ->leftJoin('compartments as c', 'i.compartment_id', '=', 'c.id')
+            ->leftJoin('lockers as l', 'c.locker_id', '=', 'l.id')
+            ->select(
+                'i.id',
+                'i.qty_available',
+                'i.qty_reserved',
+                'i.updated_at',
+                'p.id as p_id', 'p.sku as p_sku', 'p.name as p_name', 'p.barcode as p_barcode',
+                'c.id as c_id', 'c.code as c_code',
+                'l.id as l_id', 'l.code as l_code', 'l.name as l_name'
+            );
+
+        if ($compartmentId !== null) {
+            $query->where('i.compartment_id', $compartmentId);
+        }
+
+        $rows = $query->orderBy('p.name')->orderBy('l.code')->orderBy('c.code')->get();
+
+        return array_map(function ($row) {
+            return [
+                'id' => $row->id,
+                'qty_available' => (int) $row->qty_available,
+                'qty_reserved' => (int) $row->qty_reserved,
+                'updated_at' => $row->updated_at,
+                'product' => $row->p_id ? ['id' => $row->p_id, 'sku' => $row->p_sku, 'name' => $row->p_name, 'barcode' => $row->p_barcode] : null,
+                'compartment' => $row->c_id ? ['id' => $row->c_id, 'code' => $row->c_code] : null,
+                'locker' => $row->l_id ? ['id' => $row->l_id, 'code' => $row->l_code, 'name' => $row->l_name] : null,
+            ];
+        }, $rows->all());
+    }
+
     public function updateOrCreate(string $clinicId, string $compartmentId, string $productId, int $qtyAvailable): void
     {
         DB::table('compartment_inventories')->updateOrInsert(

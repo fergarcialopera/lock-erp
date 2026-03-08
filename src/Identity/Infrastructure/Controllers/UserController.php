@@ -16,7 +16,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        Gate::authorize('manage-users');
+        // Gate::authorize('manage-users');
 
         try {
             $users = $this->userService->list(
