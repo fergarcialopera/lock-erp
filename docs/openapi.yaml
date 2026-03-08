@@ -601,6 +601,121 @@ paths:
                     type: string
                     example: Inventory adjusted
 
+  /inventory/add:
+    post:
+      tags: [Inventory]
+      summary: Ampliar unidades de un producto en un compartimento
+      description: ADMIN o RESPONSABLE. Suma cantidad al stock disponible del producto en el compartimento. Crea la fila de inventario si no existe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compartment_id, product_id, quantity]
+              properties:
+                compartment_id: { type: string, format: ulid }
+                product_id: { type: string, format: ulid }
+                quantity:
+                  type: integer
+                  minimum: 1
+                  description: Unidades a añadir
+      responses:
+        '200':
+          description: Stock ampliado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Inventory units added
+                  compartment_inventory:
+                    $ref: '#/components/schemas/CompartmentInventory'
+        '404':
+          description: Compartimento o producto no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /inventory/remove:
+    post:
+      tags: [Inventory]
+      summary: Retirar unidades de un producto en un compartimento
+      description: ADMIN o RESPONSABLE. Pasa las unidades de disponible a reservado (qty_available → qty_reserved) y crea una orden de retiro en estado PENDING. Falla si no hay stock disponible suficiente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compartment_id, product_id, quantity]
+              properties:
+                compartment_id: { type: string, format: ulid }
+                product_id: { type: string, format: ulid }
+                quantity:
+                  type: integer
+                  minimum: 1
+                  description: Unidades a retirar
+      responses:
+        '200':
+          description: Stock retirado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Inventory units removed
+                  compartment_inventory:
+                    $ref: '#/components/schemas/CompartmentInventory'
+                  order:
+                    $ref: '#/components/schemas/OpenOrder'
+        '400':
+          description: Stock insuficiente en el compartimento
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Compartimento, producto o fila de inventario no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /inventory/{id}:
+    delete:
+      tags: [Inventory]
+      summary: Eliminar una entrada de inventario
+      description: ADMIN o RESPONSABLE. Borra la fila de inventario (compartimento+producto) indicada por ID. La entrada debe pertenecer a la clínica del usuario.
+      parameters:
+        - $ref: '#/components/parameters/UlidPath'
+      responses:
+        '200':
+          description: Entrada eliminada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Inventory entry deleted
+        '404':
+          description: Entrada de inventario no encontrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   # ---------- Open Orders ----------
   /open-orders:
     get:

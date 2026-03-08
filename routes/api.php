@@ -60,6 +60,9 @@ Route::prefix('v1')->group(function () {
         // Inventory
         Route::get('inventory', [InventoryController::class, 'index']);
         Route::post('inventory/adjust', [InventoryController::class, 'adjust']);
+        Route::post('inventory/add', [InventoryController::class, 'add']);
+        Route::post('inventory/remove', [InventoryController::class, 'remove']);
+        Route::delete('inventory/{id}', [InventoryController::class, 'destroy']);
 
         // Open Orders
         Route::get('open-orders', [OpenOrderController::class, 'index']);
