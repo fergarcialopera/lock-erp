@@ -64,9 +64,8 @@ Route::prefix('v1')->group(function () {
         Route::post('inventory/remove', [InventoryController::class, 'remove']);
         Route::delete('inventory/{id}', [InventoryController::class, 'destroy']);
 
-        // Open Orders
+        // Open Orders (las órdenes solo se crean al retirar desde inventario: POST /inventory/remove)
         Route::get('open-orders', [OpenOrderController::class, 'index']);
-        Route::post('open-orders', [OpenOrderController::class, 'create']);
         Route::post('open-orders/{id}/confirm-read', [OpenOrderController::class, 'confirmRead']);
 
         // Audit Logs

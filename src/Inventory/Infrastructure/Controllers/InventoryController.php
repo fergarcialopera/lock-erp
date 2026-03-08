@@ -37,6 +37,7 @@ class InventoryController extends Controller
 
         $this->inventoryService->adjust(
             $request->user()->clinic_id,
+            $request->user()->id,
             $validated['compartment_id'],
             $validated['product_id'],
             $validated['qty_available']
@@ -58,6 +59,7 @@ class InventoryController extends Controller
         try {
             $inventory = $this->inventoryService->addUnits(
                 $request->user()->clinic_id,
+                $request->user()->id,
                 $validated['compartment_id'],
                 $validated['product_id'],
                 $validated['quantity']
@@ -112,7 +114,7 @@ class InventoryController extends Controller
         Gate::authorize('manage-inventory');
 
         try {
-            $this->inventoryService->deleteEntry($request->user()->clinic_id, $id);
+            $this->inventoryService->deleteEntry($request->user()->clinic_id, $request->user()->id, $id);
         } catch (DomainException $e) {
             return response()->json(['error' => $e->getMessage()], 404);
         }

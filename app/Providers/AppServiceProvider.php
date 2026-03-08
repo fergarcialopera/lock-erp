@@ -46,7 +46,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-settings', fn($user) => $user->role === 'ADMIN');
         Gate::define('manage-users', fn($user) => $user->role === 'ADMIN');
         Gate::define('manage-inventory', fn($user) => in_array($user->role, ['ADMIN', 'RESPONSABLE']));
-        Gate::define('manage-orders', fn($user) => in_array($user->role, ['ADMIN', 'RESPONSABLE']));
         Gate::define('view-audit', fn($user) => in_array($user->role, ['ADMIN', 'RESPONSABLE']));
     }
 }

@@ -46,7 +46,7 @@ class ProductController extends Controller
         ]);
 
         try {
-            $product = $this->productService->create($request->user()->clinic_id, $validated);
+            $product = $this->productService->create($request->user()->clinic_id, $request->user()->id, $validated);
             return response()->json($product, 201);
         } catch (\DomainException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -65,7 +65,7 @@ class ProductController extends Controller
         ]);
 
         try {
-            $product = $this->productService->update($id, $request->user()->clinic_id, $validated);
+            $product = $this->productService->update($id, $request->user()->clinic_id, $request->user()->id, $validated);
 
             if (!$product) {
                 return response()->json(['error' => 'Product not found'], 404);
@@ -81,7 +81,7 @@ class ProductController extends Controller
     {
         Gate::authorize('manage-inventory');
 
-        $deactivated = $this->productService->deactivate($id, $request->user()->clinic_id);
+        $deactivated = $this->productService->deactivate($id, $request->user()->clinic_id, $request->user()->id);
 
         if (!$deactivated) {
             return response()->json(['error' => 'Product not found'], 404);

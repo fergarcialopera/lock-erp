@@ -2,6 +2,7 @@
 
 namespace Src\Lockers\Application\Services;
 
+use Src\Audit\Application\Contracts\AuditLogRepositoryInterface;
 use Src\Lockers\Application\Contracts\LockerRepositoryInterface;
 use Src\Lockers\Application\Contracts\CompartmentRepositoryInterface;
 
@@ -9,7 +10,8 @@ class LockerService
 {
     public function __construct(
         private readonly LockerRepositoryInterface $lockerRepository,
-        private readonly CompartmentRepositoryInterface $compartmentRepository
+        private readonly CompartmentRepositoryInterface $compartmentRepository,
+        private readonly AuditLogRepositoryInterface $auditLogRepository
     ) {
     }
 
@@ -33,22 +35,34 @@ class LockerService
         return $lockerArray;
     }
 
-    public function create(string $clinicId, array $data): object
+    public function create(string $clinicId, string $userId, array $data): object
     {
         if ($this->lockerRepository->existsByCode($clinicId, $data['code'])) {
             throw new \DomainException('A locker with this code already exists');
         }
 
-        return $this->lockerRepository->create([
+        $locker = $this->lockerRepository->create([
             'clinic_id' => $clinicId,
             'code' => $data['code'],
             'name' => $data['name'],
             'location' => $data['location'] ?? null,
             'is_active' => true,
         ]);
+
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'locker_created',
+            'entity_type' => 'Locker',
+            'entity_id' => $locker->id,
+            'occurred_at' => now(),
+        ]);
+
+        return $locker;
     }
 
-    public function update(string $id, string $clinicId, array $data): ?object
+    public function update(string $id, string $clinicId, string $userId, array $data): ?object
     {
         $locker = $this->lockerRepository->findByIdAndClinic($id, $clinicId);
 
@@ -65,12 +79,22 @@ class LockerService
         $updateData = array_intersect_key($data, array_flip(['code', 'name', 'location', 'is_active']));
         if (!empty($updateData)) {
             $this->lockerRepository->update($id, $clinicId, $updateData);
+            $this->auditLogRepository->log([
+                'clinic_id' => $clinicId,
+                'actor_user_id' => $userId,
+                'actor_type' => 'USER',
+                'action' => 'locker_updated',
+                'entity_type' => 'Locker',
+                'entity_id' => $id,
+                'occurred_at' => now(),
+                'payload' => $updateData,
+            ]);
         }
 
         return $this->lockerRepository->findByIdAndClinic($id, $clinicId);
     }
 
-    public function deactivate(string $id, string $clinicId): bool
+    public function deactivate(string $id, string $clinicId, string $userId): bool
     {
         $locker = $this->lockerRepository->findByIdAndClinic($id, $clinicId);
 
@@ -79,6 +103,15 @@ class LockerService
         }
 
         $this->lockerRepository->deactivate($id, $clinicId);
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'locker_deactivated',
+            'entity_type' => 'Locker',
+            'entity_id' => $id,
+            'occurred_at' => now(),
+        ]);
 
         return true;
     }

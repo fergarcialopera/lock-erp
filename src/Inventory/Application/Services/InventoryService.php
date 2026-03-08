@@ -26,9 +26,19 @@ class InventoryService
         return $this->inventoryRepository->listByClinic($clinicId, $compartmentId);
     }
 
-    public function adjust(string $clinicId, string $compartmentId, string $productId, int $qtyAvailable): void
+    public function adjust(string $clinicId, string $userId, string $compartmentId, string $productId, int $qtyAvailable): void
     {
         $this->inventoryRepository->updateOrCreate($clinicId, $compartmentId, $productId, $qtyAvailable);
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'inventory_adjusted',
+            'entity_type' => 'CompartmentInventory',
+            'entity_id' => "{$compartmentId}:{$productId}",
+            'occurred_at' => now(),
+            'payload' => ['qty_available' => $qtyAvailable],
+        ]);
     }
 
     /**
@@ -36,12 +46,24 @@ class InventoryService
      *
      * @throws DomainException Si el compartimento o el producto no pertenecen a la clínica
      */
-    public function addUnits(string $clinicId, string $compartmentId, string $productId, int $quantity): object
+    public function addUnits(string $clinicId, string $userId, string $compartmentId, string $productId, int $quantity): object
     {
         $this->ensureCompartmentBelongsToClinic($compartmentId, $clinicId);
         $this->ensureProductBelongsToClinic($productId, $clinicId);
 
-        return $this->inventoryRepository->addQuantity($clinicId, $compartmentId, $productId, $quantity);
+        $inventory = $this->inventoryRepository->addQuantity($clinicId, $compartmentId, $productId, $quantity);
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'inventory_units_added',
+            'entity_type' => 'CompartmentInventory',
+            'entity_id' => $inventory->id,
+            'occurred_at' => now(),
+            'payload' => ['quantity' => $quantity],
+        ]);
+
+        return $inventory;
     }
 
     /**
@@ -63,7 +85,7 @@ class InventoryService
 
             $order = $this->openOrderRepository->create([
                 'clinic_id' => $clinicId,
-                'requested_by_user_id' => $userId,
+                'requested_by_user_id' => $userId, // usuario identificado = responsable de la retirada
                 'locker_id' => $compartment->locker_id,
                 'compartment_id' => $compartmentId,
                 'product_id' => $productId,
@@ -92,9 +114,18 @@ class InventoryService
      *
      * @throws DomainException Si la entrada no existe o no pertenece a la clínica
      */
-    public function deleteEntry(string $clinicId, string $inventoryId): void
+    public function deleteEntry(string $clinicId, string $userId, string $inventoryId): void
     {
         $this->inventoryRepository->delete($inventoryId, $clinicId);
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'inventory_entry_deleted',
+            'entity_type' => 'CompartmentInventory',
+            'entity_id' => $inventoryId,
+            'occurred_at' => now(),
+        ]);
     }
 
     private function ensureCompartmentBelongsToClinic(string $compartmentId, string $clinicId): void

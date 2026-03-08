@@ -46,7 +46,7 @@ class LockerController extends Controller
         ]);
 
         try {
-            $locker = $this->lockerService->create($request->user()->clinic_id, $validated);
+            $locker = $this->lockerService->create($request->user()->clinic_id, $request->user()->id, $validated);
             return response()->json($locker, 201);
         } catch (\DomainException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -65,7 +65,7 @@ class LockerController extends Controller
         ]);
 
         try {
-            $locker = $this->lockerService->update($id, $request->user()->clinic_id, $validated);
+            $locker = $this->lockerService->update($id, $request->user()->clinic_id, $request->user()->id, $validated);
 
             if (!$locker) {
                 return response()->json(['error' => 'Locker not found'], 404);
@@ -81,7 +81,7 @@ class LockerController extends Controller
     {
         Gate::authorize('manage-inventory');
 
-        $deactivated = $this->lockerService->deactivate($id, $request->user()->clinic_id);
+        $deactivated = $this->lockerService->deactivate($id, $request->user()->clinic_id, $request->user()->id);
 
         if (!$deactivated) {
             return response()->json(['error' => 'Locker not found'], 404);

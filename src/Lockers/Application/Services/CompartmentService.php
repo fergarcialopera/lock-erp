@@ -2,6 +2,7 @@
 
 namespace Src\Lockers\Application\Services;
 
+use Src\Audit\Application\Contracts\AuditLogRepositoryInterface;
 use Src\Lockers\Application\Contracts\CompartmentRepositoryInterface;
 use Src\Lockers\Application\Contracts\LockerRepositoryInterface;
 
@@ -9,7 +10,8 @@ class CompartmentService
 {
     public function __construct(
         private readonly CompartmentRepositoryInterface $compartmentRepository,
-        private readonly LockerRepositoryInterface $lockerRepository
+        private readonly LockerRepositoryInterface $lockerRepository,
+        private readonly AuditLogRepositoryInterface $auditLogRepository
     ) {
     }
 
@@ -32,7 +34,7 @@ class CompartmentService
         return $this->compartmentRepository->findByIdInClinic($id, $clinicId);
     }
 
-    public function create(string $clinicId, array $data): object
+    public function create(string $clinicId, string $userId, array $data): object
     {
         if (!$this->compartmentRepository->lockerBelongsToClinic($data['locker_id'], $clinicId)) {
             throw new \DomainException('Locker not found');
@@ -42,14 +44,26 @@ class CompartmentService
             throw new \DomainException('A compartment with this code already exists in this locker');
         }
 
-        return $this->compartmentRepository->create([
+        $compartment = $this->compartmentRepository->create([
             'locker_id' => $data['locker_id'],
             'code' => $data['code'],
             'status' => $data['status'] ?? 'AVAILABLE',
         ]);
+
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'compartment_created',
+            'entity_type' => 'Compartment',
+            'entity_id' => $compartment->id,
+            'occurred_at' => now(),
+        ]);
+
+        return $compartment;
     }
 
-    public function update(string $id, string $clinicId, array $data): ?object
+    public function update(string $id, string $clinicId, string $userId, array $data): ?object
     {
         $compartment = $this->compartmentRepository->findByIdInClinic($id, $clinicId);
 
@@ -66,12 +80,22 @@ class CompartmentService
         $updateData = array_intersect_key($data, array_flip(['code', 'status', 'is_active']));
         if (!empty($updateData)) {
             $this->compartmentRepository->update($id, $updateData);
+            $this->auditLogRepository->log([
+                'clinic_id' => $clinicId,
+                'actor_user_id' => $userId,
+                'actor_type' => 'USER',
+                'action' => 'compartment_updated',
+                'entity_type' => 'Compartment',
+                'entity_id' => $id,
+                'occurred_at' => now(),
+                'payload' => $updateData,
+            ]);
         }
 
         return $this->compartmentRepository->findByIdInClinic($id, $clinicId);
     }
 
-    public function deactivate(string $id, string $clinicId): bool
+    public function deactivate(string $id, string $clinicId, string $userId): bool
     {
         $compartment = $this->compartmentRepository->findByIdInClinic($id, $clinicId);
 
@@ -80,6 +104,15 @@ class CompartmentService
         }
 
         $this->compartmentRepository->deactivate($id);
+        $this->auditLogRepository->log([
+            'clinic_id' => $clinicId,
+            'actor_user_id' => $userId,
+            'actor_type' => 'USER',
+            'action' => 'compartment_deactivated',
+            'entity_type' => 'Compartment',
+            'entity_id' => $id,
+            'occurred_at' => now(),
+        ]);
 
         return true;
     }

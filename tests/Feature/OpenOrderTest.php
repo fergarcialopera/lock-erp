@@ -35,7 +35,7 @@ class OpenOrderTest extends TestCase
         $response->assertJsonStructure(['access_token', 'token_type', 'expires_in']);
     }
 
-    public function test_create_open_order_moves_inventory_and_creates_audit_log()
+    public function test_inventory_remove_creates_order_and_moves_inventory_to_reserved()
     {
         // Get seeded admin
         $admin = DB::table('users')->where('email', 'admin@lockerp.com')->first();
@@ -44,21 +44,27 @@ class OpenOrderTest extends TestCase
         // Look for the seeded compartment and product
         $inventory = DB::table('compartment_inventories')->where('qty_available', '>=', 1)->first();
 
-        // 1. Create order
-        $response = $this->postJson('/api/v1/open-orders', [
+        // Retirar desde inventario: reserva stock y crea orden
+        $response = $this->postJson('/api/v1/inventory/remove', [
             'compartment_id' => $inventory->compartment_id,
             'product_id' => $inventory->product_id,
             'quantity' => 2,
-            'external_ref' => 'ref-123',
-        ], ['Idempotency-Key' => 'ref-123']);
+        ]);
 
-        $response->assertStatus(201);
-        $orderId = $response->json('id');
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['message', 'compartment_inventory', 'order']);
+        $orderId = $response->json('order.id');
 
-        // Assert Inventory updated
+        // Assert Inventory updated (disponible → reservado)
         $updatedInv = DB::table('compartment_inventories')->where('id', $inventory->id)->first();
         $this->assertEquals($inventory->qty_available - 2, $updatedInv->qty_available);
         $this->assertEquals($inventory->qty_reserved + 2, $updatedInv->qty_reserved);
+
+        // Assert order created
+        $order = DB::table('open_orders')->where('id', $orderId)->first();
+        $this->assertNotNull($order);
+        $this->assertEquals('PENDING', $order->status);
+        $this->assertEquals(2, $order->quantity);
 
         // Assert Audit
         $audit = DB::table('audit_logs')

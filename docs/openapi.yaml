@@ -647,7 +647,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Retirar unidades de un producto en un compartimento
-      description: ADMIN o RESPONSABLE. Pasa las unidades de disponible a reservado (qty_available → qty_reserved) y crea una orden de retiro en estado PENDING. Falla si no hay stock disponible suficiente.
+      description: ADMIN o RESPONSABLE. Pasa las unidades de disponible a reservado (qty_available → qty_reserved) y crea una orden de retiro en estado PENDING. La orden registra como responsable (requested_by_user_id) al usuario autenticado. Falla si no hay stock disponible suficiente.
       requestBody:
         required: true
         content:
@@ -721,6 +721,7 @@ paths:
     get:
       tags: [Open Orders]
       summary: Listar órdenes de retiro
+      description: Las órdenes solo se crean al solicitar una retirada desde inventario (POST /inventory/remove).
       parameters:
         - name: status
           in: query
@@ -734,44 +735,6 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/OpenOrder' }
-    post:
-      tags: [Open Orders]
-      summary: Crear orden de retiro (idempotente)
-      description: ADMIN o RESPONSABLE. Idempotencia vía header Idempotency-Key o body external_ref.
-      parameters:
-        - name: Idempotency-Key
-          in: header
-          description: Clave de idempotencia (opcional)
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [compartment_id, product_id, quantity]
-              properties:
-                compartment_id: { type: string, format: ulid }
-                product_id: { type: string, format: ulid }
-                quantity: { type: integer, minimum: 1 }
-                external_ref: { type: string, nullable: true }
-      responses:
-        '200':
-          description: Orden ya existente (idempotencia)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OpenOrder' }
-        '201':
-          description: Orden creada
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OpenOrder' }
-        '400':
-          description: Sin stock suficiente
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
 
   /open-orders/{id}/confirm-read:
     post:
@@ -942,10 +905,14 @@ components:
 
     OpenOrder:
       type: object
+      description: Orden de retiro. Se crea al solicitar una retirada desde inventario (POST /inventory/remove). El usuario responsable es el autenticado.
       properties:
         id: { type: string, format: ulid }
         clinic_id: { type: string, format: ulid }
-        requested_by_user_id: { type: string, format: ulid }
+        requested_by_user_id:
+          type: string
+          format: ulid
+          description: Usuario responsable de la solicitud (usuario autenticado que realizó la retirada).
         locker_id: { type: string, format: ulid }
         compartment_id: { type: string, format: ulid }
         product_id: { type: string, format: ulid }

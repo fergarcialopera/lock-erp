@@ -62,7 +62,7 @@ class CompartmentController extends Controller
         ]);
 
         try {
-            $compartment = $this->compartmentService->create($request->user()->clinic_id, $validated);
+            $compartment = $this->compartmentService->create($request->user()->clinic_id, $request->user()->id, $validated);
             return response()->json($compartment, 201);
         } catch (\DomainException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -80,7 +80,7 @@ class CompartmentController extends Controller
         ]);
 
         try {
-            $compartment = $this->compartmentService->update($id, $request->user()->clinic_id, $validated);
+            $compartment = $this->compartmentService->update($id, $request->user()->clinic_id, $request->user()->id, $validated);
 
             if (!$compartment) {
                 return response()->json(['error' => 'Compartment not found'], 404);
@@ -96,7 +96,7 @@ class CompartmentController extends Controller
     {
         Gate::authorize('manage-inventory');
 
-        $deactivated = $this->compartmentService->deactivate($id, $request->user()->clinic_id);
+        $deactivated = $this->compartmentService->deactivate($id, $request->user()->clinic_id, $request->user()->id);
 
         if (!$deactivated) {
             return response()->json(['error' => 'Compartment not found'], 404);
