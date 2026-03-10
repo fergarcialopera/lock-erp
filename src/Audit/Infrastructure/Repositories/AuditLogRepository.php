@@ -24,6 +24,10 @@ class AuditLogRepository implements AuditLogRepositoryInterface
         $data['created_at'] = $data['created_at'] ?? now();
         $data['updated_at'] = $data['updated_at'] ?? now();
 
+        if (isset($data['payload']) && is_array($data['payload'])) {
+            $data['payload'] = json_encode($data['payload']);
+        }
+
         DB::table('audit_logs')->insert($data);
     }
 }
