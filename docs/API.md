@@ -7,25 +7,18 @@ La API está orientada a **casos de uso**: las respuestas de listados y detalles
 
 ---
 
-## Migración Frontend: Endpoints antiguos → nuevos
+## Migración Frontend: Endpoints antiguos → actuales
 
-Usa esta tabla para actualizar las llamadas en el frontend.
+| Antes | Ahora | Notas |
+|-------|--------|--------|
+| `GET /open-orders` o `GET /orders` | **`GET /dispenses`** | Listado de dispensaciones (retiradas desde locker) con `product`, `locker`, `compartment`, `requested_by` enriquecidos. |
+| `GET /orders/{id}` | **`GET /dispenses/{id}`** | Detalle de una dispensación. |
+| `POST /orders/{id}/confirm-read` | **`POST /dispenses/{id}/confirm-read`** | Confirmar lectura/retiro de la dispensación. |
+| `GET /inventory` | **`GET /inventory`** | Misma ruta. Cada ítem incluye `product`, `compartment`, `locker`. |
+| `GET /lockers/{id}/compartments` | **`GET /lockers/{id}`** | Eliminado el subrecurso; el detalle del locker incluye `compartments[]`. |
+| `GET /dashboard` | **`GET /dashboard`** | Misma ruta. Respuesta usa `pending_dispenses_count` y `latest_dispenses` (en lugar de `pending_orders_count` / `latest_orders`). |
 
-| Antes (endpoint antiguo) | Ahora (endpoint nuevo) | Notas |
-|--------------------------|------------------------|--------|
-| `GET /open-orders` | **`GET /orders`** | Misma función. **Respuesta cambia:** cada ítem incluye `product`, `locker`, `compartment`, `requested_by` (objetos con id, nombre, etc.) en lugar de solo IDs. |
-| — | **`GET /orders/{id}`** | **Nuevo.** Detalle de una orden con las mismas relaciones enriquecidas. Usar para vista de detalle sin llamadas extra. |
-| `POST /open-orders/{id}/confirm-read` | **`POST /orders/{id}/confirm-read`** | Misma acción. Solo cambia la ruta (de `open-orders` a `orders`). Body y respuestas igual. |
-| `GET /inventory` | **`GET /inventory`** | Misma ruta. **Respuesta cambia:** cada ítem incluye `product`, `compartment` y `locker` (objetos con id, nombre, código, etc.) en lugar de solo `compartment_id` y `product_id`. |
-| `GET /lockers/{id}/compartments` | **`GET /lockers/{id}`** | **Eliminado** `/lockers/{id}/compartments`. El detalle del locker **`GET /lockers/{id}`** ya devuelve el array `compartments[]`. Usar solo esta ruta. |
-| `GET /dashboard` | **`GET /dashboard`** | Misma ruta. **Respuesta cambia:** `latest_orders` pasa a ser un array de órdenes **enriquecidas** (misma estructura que los ítems de `GET /orders`), no objetos con solo IDs. |
-
-### Resumen de cambios por recurso
-
-- **Órdenes:** Sustituir todas las referencias a `/open-orders` por **`/orders`**. Añadir uso de **`GET /orders/{id}`** para la vista de detalle.
-- **Inventario:** No cambiar la URL de `GET /inventory`; adaptar el código a la nueva forma de la respuesta (objetos `product`, `compartment`, `locker`).
-- **Lockers:** Dejar de llamar a `GET /lockers/{id}/compartments`; usar solo **`GET /lockers/{id}`** (ya incluye `compartments`).
-- **Dashboard:** No cambiar la URL; adaptar el uso de `latest_orders` a la nueva estructura enriquecida.
+**POST /inventory/remove:** La respuesta incluye `dispense` (no `order`) con el registro de dispensación creado.
 
 ---
 
@@ -46,16 +39,16 @@ Usa esta tabla para actualizar las llamadas en el frontend.
 ### Dashboard
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/dashboard` | Resumen: contadores, `has_low_stock`, `latest_orders` (enriquecidos). |
+| GET | `/dashboard` | Resumen: `active_products_count`, `available_lockers_count`, `pending_dispenses_count`, `has_low_stock`, `latest_dispenses` (enriquecidos). |
 
-### Orders (órdenes de retiro)
+### Dispenses (dispensación/retirada desde locker)
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/orders` | Listado de órdenes para vista. Query: `?status=PENDING` \| `RETIRED`. Respuesta enriquecida. |
-| GET | `/orders/{id}` | Detalle de una orden. Respuesta enriquecida. |
-| POST | `/orders/{id}/confirm-read` | Confirmar lectura/retiro. Body opcional: `{ "occurred_at": "ISO8601" }`. |
+| GET | `/dispenses` | Listado de dispensaciones para vista. Query: `?status=PENDING` \| `RETIRED`. Respuesta enriquecida. |
+| GET | `/dispenses/{id}` | Detalle de una dispensación. Respuesta enriquecida. |
+| POST | `/dispenses/{id}/confirm-read` | Confirmar lectura/retiro. Body opcional: `{ "occurred_at": "ISO8601" }`. |
 
-*Las órdenes se crean al retirar desde inventario: `POST /inventory/remove`.*
+*Las dispensaciones se crean al retirar desde inventario: `POST /inventory/remove`.*
 
 ### Inventory
 | Método | Ruta | Descripción |
@@ -63,7 +56,7 @@ Usa esta tabla para actualizar las llamadas en el frontend.
 | GET | `/inventory` | Listado para vista. Query opcional: `?compartment_id=<ULID>`. Respuesta enriquecida. |
 | POST | `/inventory/adjust` | Ajustar stock (ADMIN/RESPONSABLE). |
 | POST | `/inventory/add` | Añadir unidades (ADMIN/RESPONSABLE). |
-| POST | `/inventory/remove` | Retirar unidades y crear orden PENDING (ADMIN/RESPONSABLE). |
+| POST | `/inventory/remove` | Retirar unidades y crear dispensación PENDING (ADMIN/RESPONSABLE). Respuesta: `dispense` + `compartment_inventory`. |
 | DELETE | `/inventory/{id}` | Eliminar entrada de inventario (ADMIN/RESPONSABLE). |
 
 ### Lockers
@@ -76,7 +69,6 @@ Usa esta tabla para actualizar las llamadas en el frontend.
 | DELETE | `/lockers/{id}` | Desactivar locker. |
 
 ### Compartments, Products, Users, Audit
-Sin cambios de rutas respecto a la versión anterior.  
 CRUD estándar: `GET/POST /compartments`, `GET/PATCH/DELETE /compartments/{id}`; igual para `products` y `users`.  
 Auditoría: `GET /audit-logs`.
 
@@ -84,7 +76,7 @@ Auditoría: `GET /audit-logs`.
 
 ## Formato de respuestas enriquecidas
 
-### GET /orders (cada ítem del array)
+### GET /dispenses (cada ítem del array)
 ```json
 {
   "id": "<ULID>",
@@ -101,7 +93,7 @@ Auditoría: `GET /audit-logs`.
 }
 ```
 
-### GET /orders/{id}
+### GET /dispenses/{id}
 Misma estructura que un ítem de la lista, con campos adicionales si los hay (p. ej. `meta`, `updated_at`).
 
 ### GET /inventory (cada ítem del array)
@@ -134,8 +126,8 @@ Misma estructura que un ítem de la lista, con campos adicionales si los hay (p.
 }
 ```
 
-### GET /dashboard — latest_orders
-Cada elemento de `latest_orders` tiene la misma forma que un ítem de **GET /orders** (con `product`, `locker`, `compartment`, `requested_by`).
+### GET /dashboard — latest_dispenses
+Cada elemento de `latest_dispenses` tiene la misma forma que un ítem de **GET /dispenses** (con `product`, `locker`, `compartment`, `requested_by`).
 
 ---
 

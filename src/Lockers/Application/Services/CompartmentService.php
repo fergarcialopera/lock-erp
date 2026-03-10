@@ -4,13 +4,11 @@ namespace Src\Lockers\Application\Services;
 
 use Src\Audit\Application\Contracts\AuditLogRepositoryInterface;
 use Src\Lockers\Application\Contracts\CompartmentRepositoryInterface;
-use Src\Lockers\Application\Contracts\LockerRepositoryInterface;
 
 class CompartmentService
 {
     public function __construct(
         private readonly CompartmentRepositoryInterface $compartmentRepository,
-        private readonly LockerRepositoryInterface $lockerRepository,
         private readonly AuditLogRepositoryInterface $auditLogRepository
     ) {
     }
@@ -18,15 +16,6 @@ class CompartmentService
     public function list(string $clinicId, ?string $lockerId = null, bool $activeOnly = true): array
     {
         return $this->compartmentRepository->listByClinic($clinicId, $lockerId, $activeOnly);
-    }
-
-    public function listByLocker(string $lockerId, string $clinicId, bool $activeOnly = true): ?array
-    {
-        if (!$this->lockerRepository->findByIdAndClinic($lockerId, $clinicId)) {
-            return null;
-        }
-
-        return $this->compartmentRepository->listByLocker($lockerId, $activeOnly);
     }
 
     public function find(string $id, string $clinicId): ?object

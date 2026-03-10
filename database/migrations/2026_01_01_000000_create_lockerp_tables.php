@@ -66,7 +66,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('open_orders', function (Blueprint $table) {
+        Schema::create('dispenses', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignUlid('clinic_id')->constrained('clinics')->cascadeOnDelete();
             $table->foreignUlid('requested_by_user_id')->constrained('users')->cascadeOnDelete();
@@ -79,7 +79,7 @@ return new class extends Migration
             $table->timestamp('read_at')->nullable();
             $table->string('external_ref')->nullable();
             $table->jsonb('meta')->nullable();
-            $table->unique(['clinic_id', 'external_ref'], 'clinic_external_ref_unique');
+            $table->unique(['clinic_id', 'external_ref'], 'dispenses_clinic_external_ref_unique');
             $table->timestamps();
         });
 
@@ -100,7 +100,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('audit_logs');
-        Schema::dropIfExists('open_orders');
+        Schema::dropIfExists('dispenses');
         Schema::dropIfExists('compartment_inventories');
         Schema::dropIfExists('products');
         Schema::dropIfExists('compartments');

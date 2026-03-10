@@ -16,8 +16,8 @@ use Src\Lockers\Application\Contracts\CompartmentRepositoryInterface;
 use Src\Lockers\Infrastructure\Repositories\ClinicRepository;
 use Src\Lockers\Infrastructure\Repositories\LockerRepository;
 use Src\Lockers\Infrastructure\Repositories\CompartmentRepository;
-use Src\OpenOrders\Application\Contracts\OpenOrderRepositoryInterface;
-use Src\OpenOrders\Infrastructure\Repositories\OpenOrderRepository;
+use Src\Dispenses\Application\Contracts\DispenseRepositoryInterface;
+use Src\Dispenses\Infrastructure\Repositories\DispenseRepository;
 use Src\Audit\Application\Contracts\AuditLogRepositoryInterface;
 use Src\Audit\Infrastructure\Repositories\AuditLogRepository;
 
@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ClinicRepositoryInterface::class, ClinicRepository::class);
         $this->app->bind(LockerRepositoryInterface::class, LockerRepository::class);
         $this->app->bind(CompartmentRepositoryInterface::class, CompartmentRepository::class);
-        $this->app->bind(OpenOrderRepositoryInterface::class, OpenOrderRepository::class);
+        $this->app->bind(DispenseRepositoryInterface::class, DispenseRepository::class);
         $this->app->bind(AuditLogRepositoryInterface::class, AuditLogRepository::class);
     }
 

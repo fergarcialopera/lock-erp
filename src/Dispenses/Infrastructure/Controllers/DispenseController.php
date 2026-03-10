@@ -1,42 +1,42 @@
 <?php
 
-namespace Src\OpenOrders\Infrastructure\Controllers;
+namespace Src\Dispenses\Infrastructure\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Src\OpenOrders\Application\Services\OpenOrderService;
+use Src\Dispenses\Application\Services\DispenseService;
 
 /**
- * API orientada a casos de uso: listado y detalle de órdenes listos para pintar en frontend.
- * Rutas: GET /orders, GET /orders/{id}, POST /orders/{id}/confirm-read
+ * API de dispensaciones: listado y detalle de retiradas desde locker listos para pintar en frontend.
+ * Rutas: GET /dispenses, GET /dispenses/{id}, POST /dispenses/{id}/confirm-read
  */
-class OrdersController extends Controller
+class DispenseController extends Controller
 {
     public function __construct(
-        private readonly OpenOrderService $openOrderService
+        private readonly DispenseService $dispenseService
     ) {
     }
 
     public function index(Request $request)
     {
-        $orders = $this->openOrderService->list(
+        $dispenses = $this->dispenseService->list(
             $request->user()->clinic_id,
             $request->input('status')
         );
 
-        return response()->json($orders);
+        return response()->json($dispenses);
     }
 
     public function show(Request $request, string $id)
     {
-        $order = $this->openOrderService->getDetail($id, $request->user()->clinic_id);
+        $dispense = $this->dispenseService->getDetail($id, $request->user()->clinic_id);
 
-        if ($order === null) {
-            return response()->json(['error' => 'Order not found'], 404);
+        if ($dispense === null) {
+            return response()->json(['error' => 'Dispense not found'], 404);
         }
 
-        return response()->json($order);
+        return response()->json($dispense);
     }
 
     public function confirmRead(Request $request, string $id)
@@ -46,7 +46,7 @@ class OrdersController extends Controller
             ? Carbon::parse($request->input('occurred_at'))
             : null;
 
-        $result = $this->openOrderService->confirmRead(
+        $result = $this->dispenseService->confirmRead(
             $id,
             $user->clinic_id,
             $user->id,

@@ -25,21 +25,6 @@ class CompartmentController extends Controller
         return response()->json($compartments);
     }
 
-    public function indexByLocker(Request $request, string $lockerId)
-    {
-        $compartments = $this->compartmentService->listByLocker(
-            $lockerId,
-            $request->user()->clinic_id,
-            $request->boolean('active_only', true)
-        );
-
-        if ($compartments === null) {
-            return response()->json(['error' => 'Locker not found'], 404);
-        }
-
-        return response()->json($compartments);
-    }
-
     public function show(Request $request, string $id)
     {
         $compartment = $this->compartmentService->find($id, $request->user()->clinic_id);

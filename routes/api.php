@@ -8,7 +8,7 @@ use Src\Inventory\Infrastructure\Controllers\ProductController;
 use Src\Lockers\Infrastructure\Controllers\ClinicController;
 use Src\Lockers\Infrastructure\Controllers\LockerController;
 use Src\Lockers\Infrastructure\Controllers\CompartmentController;
-use Src\OpenOrders\Infrastructure\Controllers\OrdersController;
+use Src\Dispenses\Infrastructure\Controllers\DispenseController;
 use Src\Audit\Infrastructure\Controllers\AuditController;
 use Src\Dashboard\Infrastructure\Controllers\DashboardController;
 
@@ -63,10 +63,10 @@ Route::prefix('v1')->group(function () {
         Route::post('inventory/remove', [InventoryController::class, 'remove']);
         Route::delete('inventory/{id}', [InventoryController::class, 'destroy']);
 
-        // Orders (caso de uso: listado y detalle listos para vista; confirm-read para marcar leída)
-        Route::get('orders', [OrdersController::class, 'index']);
-        Route::get('orders/{id}', [OrdersController::class, 'show']);
-        Route::post('orders/{id}/confirm-read', [OrdersController::class, 'confirmRead']);
+        // Dispenses (dispensación/retirada desde locker: listado, detalle, confirm-read)
+        Route::get('dispenses', [DispenseController::class, 'index']);
+        Route::get('dispenses/{id}', [DispenseController::class, 'show']);
+        Route::post('dispenses/{id}/confirm-read', [DispenseController::class, 'confirmRead']);
 
         // Audit Logs
         Route::get('audit-logs', [AuditController::class, 'index']);

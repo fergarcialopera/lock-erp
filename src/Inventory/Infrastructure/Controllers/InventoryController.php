@@ -105,7 +105,7 @@ class InventoryController extends Controller
         return response()->json([
             'message' => 'Inventory units removed',
             'compartment_inventory' => $result['inventory'],
-            'order' => $result['order'],
+            'dispense' => $result['dispense'],
         ]);
     }
 

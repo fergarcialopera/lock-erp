@@ -30,8 +30,8 @@ tags:
     description: CRUD de compartimentos
   - name: Inventory
     description: Inventario por compartimento
-  - name: Orders
-    description: Órdenes de retiro (listado y detalle enriquecidos para vista)
+  - name: Dispenses
+    description: Dispensaciones/retiradas desde locker (listado y detalle enriquecidos para vista)
   - name: Audit
     description: Logs de auditoría
   - name: Dashboard
@@ -149,9 +149,9 @@ paths:
         Devuelve resumen de la aplicación para el panel de control:
         - Número de productos activos
         - Número de lockers disponibles (activos)
-        - Órdenes pendientes de confirmar (status PENDING)
-        - Si hay inventario bajo en algún producto (algún producto activo con stock total <= 0)
-        - Últimas 5 órdenes (cualquier estado)
+        - Dispensaciones pendientes de confirmar (status PENDING)
+        - Si hay inventario bajo en algún producto
+        - Últimas 5 dispensaciones (cualquier estado)
       responses:
         '200':
           description: Datos del dashboard
@@ -628,7 +628,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Retirar unidades de un producto en un compartimento
-      description: ADMIN o RESPONSABLE. Pasa las unidades de disponible a reservado (qty_available → qty_reserved) y crea una orden de retiro en estado PENDING. La orden registra como responsable (requested_by_user_id) al usuario autenticado. Falla si no hay stock disponible suficiente.
+      description: ADMIN o RESPONSABLE. Pasa las unidades de disponible a reservado (qty_available → qty_reserved) y crea una dispensación en estado PENDING. La dispensación registra como responsable (requested_by_user_id) al usuario autenticado. Falla si no hay stock disponible suficiente.
       requestBody:
         required: true
         content:
@@ -656,8 +656,8 @@ paths:
                     example: Inventory units removed
                   compartment_inventory:
                     $ref: '#/components/schemas/CompartmentInventory'
-                  order:
-                    $ref: '#/components/schemas/OpenOrder'
+                  dispense:
+                    $ref: '#/components/schemas/Dispense'
         '400':
           description: Stock insuficiente en el compartimento
           content:
@@ -697,14 +697,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
-  # ---------- Orders ----------
-  /orders:
+  # ---------- Dispenses ----------
+  /dispenses:
     get:
-      tags: [Orders]
-      summary: Listar órdenes de retiro (para vista)
+      tags: [Dispenses]
+      summary: Listar dispensaciones (para vista)
       description: |
-        Devuelve órdenes con product, locker, compartment y requested_by resueltos.
-        Las órdenes solo se crean al solicitar una retirada (POST /inventory/remove).
+        Devuelve dispensaciones con product, locker, compartment y requested_by resueltos.
+        Las dispensaciones se crean al solicitar una retirada (POST /inventory/remove).
       parameters:
         - name: status
           in: query
@@ -717,12 +717,12 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/OrderForDisplay' }
+                items: { $ref: '#/components/schemas/DispenseForDisplay' }
 
-  /orders/{id}:
+  /dispenses/{id}:
     get:
-      tags: [Orders]
-      summary: Obtener detalle de una orden
+      tags: [Dispenses]
+      summary: Obtener detalle de una dispensación
       description: Misma estructura enriquecida que un ítem del listado (product, locker, compartment, requested_by).
       parameters:
         - $ref: '#/components/parameters/UlidPath'
@@ -730,17 +730,17 @@ paths:
         '200':
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/OrderForDisplay' }
+              schema: { $ref: '#/components/schemas/DispenseForDisplay' }
         '404':
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
-  /orders/{id}/confirm-read:
+  /dispenses/{id}/confirm-read:
     post:
-      tags: [Orders]
-      summary: Confirmar lectura/retiro de orden
-      description: Concluye el flujo y marca la orden como RETIRED.
+      tags: [Dispenses]
+      summary: Confirmar lectura/retiro de dispensación
+      description: Concluye el flujo y marca la dispensación como RETIRED.
       parameters:
         - $ref: '#/components/parameters/UlidPath'
       requestBody:
@@ -808,22 +808,22 @@ components:
         available_lockers_count:
           type: integer
           description: Número de lockers disponibles (activos)
-        pending_orders_count:
+        pending_dispenses_count:
           type: integer
-          description: Órdenes pendientes de confirmar (PENDING)
+          description: Dispensaciones pendientes de confirmar (PENDING)
         has_low_stock:
           type: boolean
           description: true si algún producto activo tiene stock total <= 0
-        latest_orders:
+        latest_dispenses:
           type: array
-          description: Últimas 5 órdenes enriquecidas (product, locker, compartment, requested_by)
-          items: { $ref: '#/components/schemas/OrderForDisplay' }
+          description: Últimas 5 dispensaciones enriquecidas (product, locker, compartment, requested_by)
+          items: { $ref: '#/components/schemas/DispenseForDisplay' }
       required:
         - active_products_count
         - available_lockers_count
-        - pending_orders_count
+        - pending_dispenses_count
         - has_low_stock
-        - latest_orders
+        - latest_dispenses
 
     Error:
       type: object
@@ -902,9 +902,9 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
-    OrderForDisplay:
+    DispenseForDisplay:
       type: object
-      description: Orden de retiro con relaciones resueltas para vista (GET /orders, GET /orders/{id}, dashboard latest_orders).
+      description: Dispensación con relaciones resueltas para vista (GET /dispenses, GET /dispenses/{id}, dashboard latest_dispenses).
       properties:
         id: { type: string, format: ulid }
         status: { type: string, enum: [PENDING, RETIRED, CANCELLED] }
@@ -988,9 +988,9 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
-    OpenOrder:
+    Dispense:
       type: object
-      description: Orden cruda (p. ej. en respuesta de POST /inventory/remove). Para listados usar OrderForDisplay.
+      description: Dispensación cruda (p. ej. en respuesta de POST /inventory/remove). Para listados usar DispenseForDisplay.
       properties:
         id: { type: string, format: ulid }
         clinic_id: { type: string, format: ulid }

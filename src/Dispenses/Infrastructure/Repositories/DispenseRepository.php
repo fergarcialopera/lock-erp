@@ -1,16 +1,16 @@
 <?php
 
-namespace Src\OpenOrders\Infrastructure\Repositories;
+namespace Src\Dispenses\Infrastructure\Repositories;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Src\OpenOrders\Application\Contracts\OpenOrderRepositoryInterface;
+use Src\Dispenses\Application\Contracts\DispenseRepositoryInterface;
 
-class OpenOrderRepository implements OpenOrderRepositoryInterface
+class DispenseRepository implements DispenseRepositoryInterface
 {
     public function listByClinic(string $clinicId, ?string $status = null): array
     {
-        $query = DB::table('open_orders')->where('clinic_id', $clinicId);
+        $query = DB::table('dispenses')->where('clinic_id', $clinicId);
 
         if ($status !== null) {
             $query->where('status', strtoupper($status));
@@ -21,20 +21,20 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
 
     public function listByClinicForDisplay(string $clinicId, ?string $status = null): array
     {
-        $query = DB::table('open_orders as o')
-            ->where('o.clinic_id', $clinicId)
-            ->leftJoin('products as p', 'o.product_id', '=', 'p.id')
-            ->leftJoin('lockers as l', 'o.locker_id', '=', 'l.id')
-            ->leftJoin('compartments as c', 'o.compartment_id', '=', 'c.id')
-            ->leftJoin('users as u', 'o.requested_by_user_id', '=', 'u.id')
+        $query = DB::table('dispenses as d')
+            ->where('d.clinic_id', $clinicId)
+            ->leftJoin('products as p', 'd.product_id', '=', 'p.id')
+            ->leftJoin('lockers as l', 'd.locker_id', '=', 'l.id')
+            ->leftJoin('compartments as c', 'd.compartment_id', '=', 'c.id')
+            ->leftJoin('users as u', 'd.requested_by_user_id', '=', 'u.id')
             ->select(
-                'o.id',
-                'o.status',
-                'o.quantity',
-                'o.requested_at',
-                'o.read_at',
-                'o.external_ref',
-                'o.created_at',
+                'd.id',
+                'd.status',
+                'd.quantity',
+                'd.requested_at',
+                'd.read_at',
+                'd.external_ref',
+                'd.created_at',
                 'p.id as p_id', 'p.sku as p_sku', 'p.name as p_name', 'p.barcode as p_barcode',
                 'l.id as l_id', 'l.code as l_code', 'l.name as l_name',
                 'c.id as c_id', 'c.code as c_code',
@@ -42,17 +42,17 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
             );
 
         if ($status !== null) {
-            $query->where('o.status', strtoupper($status));
+            $query->where('d.status', strtoupper($status));
         }
 
-        $rows = $query->orderByDesc('o.created_at')->get();
+        $rows = $query->orderByDesc('d.created_at')->get();
 
-        return array_map([$this, 'mapRowToOrderForDisplay'], $rows->all());
+        return array_map([$this, 'mapRowToDispenseForDisplay'], $rows->all());
     }
 
     public function listLatestByClinic(string $clinicId, int $limit = 5): array
     {
-        return DB::table('open_orders')
+        return DB::table('dispenses')
             ->where('clinic_id', $clinicId)
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -62,25 +62,25 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
 
     public function listLatestByClinicForDisplay(string $clinicId, int $limit = 5): array
     {
-        $query = DB::table('open_orders as o')
-            ->where('o.clinic_id', $clinicId)
-            ->leftJoin('products as p', 'o.product_id', '=', 'p.id')
-            ->leftJoin('lockers as l', 'o.locker_id', '=', 'l.id')
-            ->leftJoin('compartments as c', 'o.compartment_id', '=', 'c.id')
-            ->leftJoin('users as u', 'o.requested_by_user_id', '=', 'u.id')
+        $query = DB::table('dispenses as d')
+            ->where('d.clinic_id', $clinicId)
+            ->leftJoin('products as p', 'd.product_id', '=', 'p.id')
+            ->leftJoin('lockers as l', 'd.locker_id', '=', 'l.id')
+            ->leftJoin('compartments as c', 'd.compartment_id', '=', 'c.id')
+            ->leftJoin('users as u', 'd.requested_by_user_id', '=', 'u.id')
             ->select(
-                'o.id',
-                'o.status',
-                'o.quantity',
-                'o.requested_at',
-                'o.read_at',
-                'o.created_at',
+                'd.id',
+                'd.status',
+                'd.quantity',
+                'd.requested_at',
+                'd.read_at',
+                'd.created_at',
                 'p.id as p_id', 'p.sku as p_sku', 'p.name as p_name',
                 'l.id as l_id', 'l.code as l_code', 'l.name as l_name',
                 'c.id as c_id', 'c.code as c_code',
                 'u.id as u_id', 'u.name as u_name'
             )
-            ->orderByDesc('o.created_at')
+            ->orderByDesc('d.created_at')
             ->limit($limit);
 
         $rows = $query->get();
@@ -103,23 +103,23 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
 
     public function findByIdAndClinicForDisplay(string $id, string $clinicId): ?array
     {
-        $row = DB::table('open_orders as o')
-            ->where('o.id', $id)
-            ->where('o.clinic_id', $clinicId)
-            ->leftJoin('products as p', 'o.product_id', '=', 'p.id')
-            ->leftJoin('lockers as l', 'o.locker_id', '=', 'l.id')
-            ->leftJoin('compartments as c', 'o.compartment_id', '=', 'c.id')
-            ->leftJoin('users as u', 'o.requested_by_user_id', '=', 'u.id')
+        $row = DB::table('dispenses as d')
+            ->where('d.id', $id)
+            ->where('d.clinic_id', $clinicId)
+            ->leftJoin('products as p', 'd.product_id', '=', 'p.id')
+            ->leftJoin('lockers as l', 'd.locker_id', '=', 'l.id')
+            ->leftJoin('compartments as c', 'd.compartment_id', '=', 'c.id')
+            ->leftJoin('users as u', 'd.requested_by_user_id', '=', 'u.id')
             ->select(
-                'o.id',
-                'o.status',
-                'o.quantity',
-                'o.requested_at',
-                'o.read_at',
-                'o.external_ref',
-                'o.meta',
-                'o.created_at',
-                'o.updated_at',
+                'd.id',
+                'd.status',
+                'd.quantity',
+                'd.requested_at',
+                'd.read_at',
+                'd.external_ref',
+                'd.meta',
+                'd.created_at',
+                'd.updated_at',
                 'p.id as p_id', 'p.sku as p_sku', 'p.name as p_name', 'p.barcode as p_barcode',
                 'l.id as l_id', 'l.code as l_code', 'l.name as l_name', 'l.location as l_location',
                 'c.id as c_id', 'c.code as c_code', 'c.status as c_status',
@@ -148,7 +148,7 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
         ];
     }
 
-    private function mapRowToOrderForDisplay(object $row): array
+    private function mapRowToDispenseForDisplay(object $row): array
     {
         return [
             'id' => $row->id,
@@ -167,7 +167,7 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
 
     public function findByExternalRef(string $clinicId, string $externalRef): ?object
     {
-        return DB::table('open_orders')
+        return DB::table('dispenses')
             ->where('clinic_id', $clinicId)
             ->where('external_ref', $externalRef)
             ->first();
@@ -175,7 +175,7 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
 
     public function findByIdAndClinicForUpdate(string $id, string $clinicId): ?object
     {
-        return DB::table('open_orders')
+        return DB::table('dispenses')
             ->where('clinic_id', $clinicId)
             ->where('id', $id)
             ->lockForUpdate()
@@ -189,14 +189,14 @@ class OpenOrderRepository implements OpenOrderRepositoryInterface
         $data['created_at'] = now();
         $data['updated_at'] = now();
 
-        DB::table('open_orders')->insert($data);
+        DB::table('dispenses')->insert($data);
 
-        return DB::table('open_orders')->where('id', $id)->first();
+        return DB::table('dispenses')->where('id', $id)->first();
     }
 
     public function markAsRetired(string $id, \DateTimeInterface $readAt): void
     {
-        DB::table('open_orders')->where('id', $id)->update([
+        DB::table('dispenses')->where('id', $id)->update([
             'status' => 'RETIRED',
             'read_at' => $readAt,
             'updated_at' => now(),

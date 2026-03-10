@@ -15,7 +15,7 @@ Al ser una API Pura orientada a negocio transaccional, descarta el monolito trad
 *   **PostgreSQL 15**
 *   **Autenticación JWT** (Stateless Auth - `php-open-source-saver/jwt-auth`)
 *   **Docker & Docker Compose** (Nginx + PHP-FPM 8.4 + Postgres)
-*   **Estructura DDD**: Dominios separados en `src/` (`Identity`, `Lockers`, `Inventory`, `OpenOrders`, `Audit`)
+*   **Estructura DDD**: Dominios separados en `src/` (`Identity`, `Lockers`, `Inventory`, `Dispenses`, `Audit`)
 *   **Seguridad y Concurrencia**: Transacciones ACID con bloqueo de fila de datos (`lockForUpdate()`).
 *   **Idempotencia**: Claves de idempotencia paramétricas soportadas para endpoints que alteren el Stock.
 *   **Identificadores**: Control de Identidad mediante **ULIDs**.
@@ -74,11 +74,11 @@ Todos los endpoints (excepto el login) requieren **JWT Bearer** y están sujetos
 |------|--------|------|
 | **Auth** | `POST /auth/login`, `POST /auth/logout` | Login público; resto con Bearer. |
 | **Clinic** | `GET /clinic`, `PATCH /clinic/settings` | Configuración de la clínica. |
-| **Dashboard** | `GET /dashboard` | Resumen y `latest_orders` enriquecidos. |
-| **Orders** | `GET /orders`, `GET /orders/{id}`, `POST /orders/{id}/confirm-read` | Listado y detalle listos para vista (product, locker, compartment, requested_by). Las órdenes se crean con `POST /inventory/remove`. |
+| **Dashboard** | `GET /dashboard` | Resumen y `latest_dispenses` enriquecidos (`pending_dispenses_count`). |
+| **Dispenses** | `GET /dispenses`, `GET /dispenses/{id}`, `POST /dispenses/{id}/confirm-read` | Dispensaciones/retiradas desde locker listas para vista. Se crean con `POST /inventory/remove`. |
 | **Inventory** | `GET /inventory`, `POST /inventory/adjust`, `add`, `remove`, `DELETE /inventory/{id}` | Listado enriquecido (product, compartment, locker). |
 | **Lockers** | `GET /lockers`, `GET /lockers/{id}` (incluye `compartments`), CRUD | No usar `/lockers/{id}/compartments` (eliminado). |
 | **Products, Users, Compartments** | CRUD estándar | Sin cambios. |
 | **Audit** | `GET /audit-logs` | Logs de auditoría. |
 
-Para **mapeo antiguo → nuevo** (p. ej. `/open-orders` → `/orders`, respuestas enriquecidas) y ejemplos de JSON, ver **[`docs/API.md`](docs/API.md)**.
+Para **mapeo de endpoints y respuestas enriquecidas** (p. ej. `/dispenses`, `latest_dispenses`), ver **[`docs/API.md`](docs/API.md)**.
