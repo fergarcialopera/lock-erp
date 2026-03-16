@@ -28,7 +28,18 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertStatus(401);
-        $response->assertJson(['error' => 'Unauthorized']);
+        $response->assertJson(['error' => 'Invalid credentials']);
+    }
+
+    public function test_login_returns_404_when_user_not_found(): void
+    {
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'nonexistent@lockerp.com',
+            'password' => 'whatever',
+        ]);
+
+        $response->assertStatus(404);
+        $response->assertJson(['error' => 'User not found']);
     }
 
     public function test_login_requires_email_and_password(): void

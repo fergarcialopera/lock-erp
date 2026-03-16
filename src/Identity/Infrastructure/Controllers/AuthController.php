@@ -5,6 +5,8 @@ namespace Src\Identity\Infrastructure\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Src\Identity\Infrastructure\Models\User;
 
 class AuthController extends Controller
 {
@@ -15,9 +17,17 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!$token = Auth::guard('api')->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        $user = User::where('email', $credentials['email'])->first();
+
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
         }
+
+        if (!Hash::check($credentials['password'], $user->password)) {
+            return response()->json(['error' => 'Invalid credentials'], 401);
+        }
+
+        $token = Auth::guard('api')->login($user);
 
         return response()->json([
             'access_token' => $token,

@@ -59,6 +59,33 @@ docker exec lockerp_app php artisan test
 
 ---
 
+## Xdebug en Docker (desarrollo) 🐞
+
+Para evitar problemas graves de rendimiento en local, el contenedor PHP (`app`) viene con **Xdebug instalado pero desactivado por defecto**.
+
+- **Estado por defecto**  
+  - En `docker-compose.yml`:
+    - `XDEBUG_MODE=off`
+  - No se establece conexión de depuración salvo que cambies este valor.
+
+- **Cómo activar Xdebug puntualmente**
+  1. Edita `docker-compose.yml` y cambia:
+     - `XDEBUG_MODE=off` → `XDEBUG_MODE=debug`
+  2. Reconstruye/levanta el contenedor PHP:
+     ```bash
+     docker compose up -d --build app
+     ```
+  3. Configura tu IDE (por defecto:
+     - Host: `host.docker.internal`
+     - Puerto: `9003`
+     - IDE key: `VSCODE`)
+
+- **Nota de rendimiento**  
+  - Ten Xdebug **apagado** (`off`) para trabajar normalmente (frontend llamando a la API).
+  - Actívalo solo cuando estés depurando una petición o un comando concreto.
+
+---
+
 ## Documentación de Endpoints 📜
 
 - **Referencia completa y mapeo para el frontend:** **[`docs/API.md`](docs/API.md)** — Incluye la tabla **antiguos → nuevos endpoints** para migrar las llamadas del frontend y el formato de las respuestas enriquecidas.

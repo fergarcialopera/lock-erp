@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
+# Install PHP extensions (including OPcache)
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
-    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd opcache
 
 # Install Xdebug
 RUN pecl channel-update pecl.php.net \
@@ -26,6 +26,9 @@ COPY .docker/php/xdebug.ini /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# OPcache configuration
+COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 # Set working directory
 WORKDIR /var/www
