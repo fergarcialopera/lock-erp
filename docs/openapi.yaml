@@ -2,18 +2,45 @@
 # Contrato entre backend (Laravel) y frontend.
 # IMPORTANTE: Actualizar este fichero cada vez que se añada o modifique un endpoint.
 # Ubicación de rutas en el proyecto: routes/api.php
+#
+# Resumen paths bajo /api/v1 (ver routes/api.php):
+#   POST auth/login | POST auth/logout
+#   GET clinic | PATCH clinic/settings | GET dashboard
+#   GET/POST /products | GET/PATCH/DELETE /products/{id}
+#   GET/POST /users | GET/PATCH/DELETE /users/{id}
+#   GET/POST /lockers | GET/PATCH/DELETE /lockers/{id}
+#   GET/POST /compartments | GET/PATCH/DELETE /compartments/{id}
+#   GET /inventory | POST /inventory/adjust|add|remove | DELETE /inventory/{id}
+#   GET /dispenses | GET /dispenses/{id} | POST /dispenses/{id}/confirm-read
+#   GET /audit-logs
+# Health (bootstrap/app.php, sin /api): GET /up
 
 openapi: 3.0.3
 info:
   title: Lock-ERP API
-  description: API REST del sistema Lock-ERP. Autenticación JWT Bearer en todos los endpoints excepto login.
+  description: |
+    API REST del sistema Lock-ERP.
+
+    **Autenticación:** JWT Bearer (`Authorization: Bearer <token>`) en todos los endpoints salvo `POST /auth/login`.
+    Los tokens se obtienen con el login y expiran según `expires_in` (segundos).
+
+    **Rutas HTTP (Laravel):** las rutas de este fichero se definen en `routes/api.php` bajo el prefijo `v1`.
+    El framework aplica el prefijo `/api`, por tanto las URLs completas son `{base}/api/v1/...`
+    (p. ej. con Docker/nginx en `http://localhost:8000/api/v1/auth/login`).
+
+    **Health check (sin prefijo `/api`):** `GET /up` — comprobación de arranque (definido en `bootstrap/app.php`).
+
+    **Errores de autorización:** donde se usa `Gate` (roles ADMIN / RESPONSABLE), la API puede responder **403**
+    si el usuario autenticado no tiene permiso. Sin token o token inválido → **401**.
   version: 1.0.0
   contact:
     name: Lock-ERP
 
 servers:
   - url: /api/v1
-    description: API v1
+    description: API v1 (prefijo Laravel `/api` + grupo `v1`)
+  - url: /
+    description: Raíz de la aplicación (solo health)
 
 tags:
   - name: Auth
@@ -36,11 +63,26 @@ tags:
     description: Logs de auditoría
   - name: Dashboard
     description: Resumen general para el panel de control
+  - name: Health
+    description: Comprobación de arranque (sin prefijo /api)
 
 security:
   - bearerAuth: []
 
 paths:
+  # ---------- Health (raíz de la app, no bajo /api) ----------
+  /up:
+    get:
+      tags: [Health]
+      summary: Health check Laravel
+      description: Sin autenticación. Indica que la aplicación responde.
+      security: []
+      servers:
+        - url: /
+      responses:
+        '200':
+          description: Aplicación en ejecución
+
   # ---------- Auth ----------
   /auth/login:
     post:
@@ -76,12 +118,26 @@ paths:
                     example: bearer
                   expires_in:
                     type: integer
-                    description: Segundos hasta expiración
+                    description: Segundos hasta expiración del JWT
         '401':
-          description: Credenciales inválidas
+          description: Contraseña incorrecta (usuario existe)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error: Invalid credentials
+        '404':
+          description: No existe usuario con ese email
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error: User not found
+        '422':
+          description: Validación fallida (email o password ausentes o formato inválido)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidationError' }
 
   /auth/logout:
     post:
@@ -139,6 +195,16 @@ paths:
                   message:
                     type: string
                     example: Settings updated successfully
+        '403':
+          description: Solo rol ADMIN
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Validación (open_latency_ms requerido o inválido)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidationError' }
 
   # ---------- Dashboard ----------
   /dashboard:
@@ -614,15 +680,21 @@ paths:
                     example: Inventory units added
                   compartment_inventory:
                     $ref: '#/components/schemas/CompartmentInventory'
+        '400':
+          description: Regla de negocio (p. ej. stock insuficiente para la operación)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '404':
           description: Compartimento o producto no encontrado
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '422':
+          description: Validación de entrada fallida
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: '#/components/schemas/ValidationError' }
 
   /inventory/remove:
     post:
@@ -669,9 +741,10 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '422':
+          description: Validación de entrada fallida
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: '#/components/schemas/ValidationError' }
 
   /inventory/{id}:
     delete:
@@ -833,6 +906,19 @@ components:
           description: Mensaje de error
       required: [error]
 
+    ValidationError:
+      type: object
+      description: Error de validación Laravel (típico en 422)
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
     Clinic:
       type: object
       properties:
@@ -892,6 +978,7 @@ components:
 
     CompartmentInventory:
       type: object
+      description: Fila de inventario (compartimento + producto). Usada en respuestas de POST /inventory/add y /inventory/remove.
       properties:
         id: { type: string, format: ulid }
         clinic_id: { type: string, format: ulid }
@@ -974,19 +1061,6 @@ components:
             id: { type: string, format: ulid }
             code: { type: string }
             name: { type: string }
-
-    CompartmentInventory:
-      type: object
-      description: Entrada de inventario (forma interna; respuestas de add/remove pueden usarla).
-      properties:
-        id: { type: string, format: ulid }
-        clinic_id: { type: string, format: ulid }
-        compartment_id: { type: string, format: ulid }
-        product_id: { type: string, format: ulid }
-        qty_available: { type: integer }
-        qty_reserved: { type: integer }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
 
     Dispense:
       type: object
